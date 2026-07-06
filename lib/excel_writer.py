@@ -41,6 +41,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import openpyxl
+from openpyxl.chart import BarChart, LineChart
 from openpyxl.chart.shapes import GraphicalProperties
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.drawing.line import LineProperties
@@ -91,6 +92,43 @@ def _validate_template(ws) -> None:
         )
 
 
+def _series_props(color: str, is_line: bool) -> GraphicalProperties:
+    """Graphical properties for a series, colored correctly for its chart type:
+    a line series colors its stroke; a bar series fills its body."""
+    if is_line:
+        return GraphicalProperties(ln=LineProperties(solidFill=_hex(color)))
+    return GraphicalProperties(solidFill=_hex(color))
+
+
+def _convert_chart_type(chart, target: str):
+    """Return `chart` unchanged if it's already the target type ("line"/"bar"),
+    otherwise a new chart of the target type carrying over the same series,
+    title, anchor, and value-axis minimum.
+
+    Series objects are shared by both LineChart and BarChart in openpyxl, so
+    they move across intact (keeping their data references); only the container
+    chart type changes. Verify the result in real Excel before trusting it.
+    """
+    want_line = target == "line"
+    is_line = isinstance(chart, LineChart)
+    if want_line == is_line:
+        return chart
+
+    new = LineChart() if want_line else BarChart()
+    if not want_line:
+        new.type = "col"          # vertical bars
+        new.grouping = "clustered"
+    for series in list(chart.series):
+        new.series.append(series)
+    new.title = chart.title
+    new.anchor = chart.anchor
+    try:
+        new.y_axis.scaling.min = chart.y_axis.scaling.min
+    except Exception:
+        pass
+    return new
+
+
 def apply_profile_to_workbook(template_xlsx_path: str | Path, profile: OrgProfile,
                                output_xlsx_path: str | Path,
                                logo_path: str | Path | None = None) -> Path:
@@ -129,11 +167,33 @@ def apply_profile_to_workbook(template_xlsx_path: str | Path, profile: OrgProfil
             new_images.append(new_img)
         ws._images = new_images
 
-    # 4. Chart colors, display order (legend + z-order together), axis minimums
+    # 4. Chart type (line/bar), colors, display order, axis minimums.
+    #
+    # The input always matches the validated template order
+    # [Income LineChart, Expense LineChart, Data BarChart], so we identify the
+    # three charts by position: 0=Income, 1=Expense, 2=Data. Each may be
+    # converted to the type requested in the profile before colors are applied.
+    #
+    # NOTE (2026-07-06): chart-type conversion (line<->bar) is applied here but
+    # can only be fully verified in real Microsoft Excel -- this project's
+    # LibreOffice-based rendering doesn't exercise every Excel chart nuance.
+    # Treat a converted workbook as "needs a human look in Excel", the same
+    # caveat that applies to display_order (see the goal prompt).
     line_colors = profile.line_colors
     display_order = profile.display_order or list(range(4))
-    for chart in ws._charts:
-        if type(chart).__name__ == "LineChart":
+    desired_types = {
+        0: profile.income_chart_type,
+        1: profile.expense_chart_type,
+        2: profile.data_chart_type,
+    }
+
+    new_charts = []
+    for idx, chart in enumerate(list(ws._charts)):
+        target = desired_types.get(idx, "line" if idx < 2 else "bar")
+        chart = _convert_chart_type(chart, target)
+        final_is_line = isinstance(chart, LineChart)
+
+        if idx in (0, 1):  # Income / Expense: 4 fiscal-year series
             # Reorder series per display_order, then reassign idx/order 0..N-1
             # to match the new physical sequence (see module docstring note).
             original = list(chart.series)
@@ -142,16 +202,17 @@ def apply_profile_to_workbook(template_xlsx_path: str | Path, profile: OrgProfil
                 series.idx = slot
                 series.order = slot
                 color = line_colors[slot] if slot < len(line_colors) else "888888"
-                series.graphicalProperties = GraphicalProperties(
-                    ln=LineProperties(solidFill=_hex(color))
-                )
+                series.graphicalProperties = _series_props(color, final_is_line)
             chart.series = reordered
             chart.y_axis.scaling.min = profile.line_axis_min
-        elif type(chart).__name__ == "BarChart":
-            # Confirmed order: series[0] = Actual, series[1] = Budgeted
-            chart.series[0].graphicalProperties = GraphicalProperties(solidFill=_hex(profile.bar_actual_color))
-            chart.series[1].graphicalProperties = GraphicalProperties(solidFill=_hex(profile.bar_budget_color))
+        else:  # Data: series[0] = Actual, series[1] = Budgeted
+            colors = [profile.bar_actual_color, profile.bar_budget_color]
+            for si in range(min(2, len(chart.series))):
+                chart.series[si].graphicalProperties = _series_props(colors[si], final_is_line)
             chart.y_axis.scaling.min = profile.bar_axis_min
+
+        new_charts.append(chart)
+    ws._charts = new_charts
 
     output_xlsx_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_xlsx_path)
