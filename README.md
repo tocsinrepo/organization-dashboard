@@ -103,6 +103,12 @@ requirements.txt
 - **Now:** logo, header text, color scheme (banners, bar chart, 4-series line
   charts), fiscal-year display order, axis minimums, and a downloadable/
   uploadable Excel settings form as an alternative to the on-screen controls.
+  The settings form also has its own organization name/header subtitle
+  fields and a 5-preset color-scheme dropdown (Purple & Orange, Cornerstones
+  Classic, Navy & Silver, Forest & Amber, Slate & Crimson) that auto-fills
+  every color cell -- and its own color swatch -- the moment you pick a
+  scheme, so it can be filled out entirely in Excel without ever opening
+  the web app.
 - **Next:** switching a chart's type (e.g. bar to line).
 - **Next:** editing number formats (e.g. `$#,##0,K`).
 - **Later:** a blank starter template file so a brand-new organization doesn't
