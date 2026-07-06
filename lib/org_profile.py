@@ -55,7 +55,7 @@ GOLD_TEAL_BAR_BUDGET = "#D2D2D7"
 @dataclass
 class OrgProfile:
     org_name: str = "Your Organization"
-    header_subtitle: str = "Executive Director's Report"
+    header_subtitle: str = "Dashboard Subtitle"
     banner_primary: str = DEFAULT_BANNER_PRIMARY
     banner_secondary: str = DEFAULT_BANNER_SECONDARY
     accent: str = DEFAULT_ACCENT
