@@ -44,8 +44,13 @@ class DashboardData:
     categories: list = field(default_factory=list)   # shared x labels (e.g. months)
     income: list[Series] = field(default_factory=list)
     expense: list[Series] = field(default_factory=list)
-    bar_categories: list = field(default_factory=list)   # e.g. ["Actual", "Budgeted"]
-    bar_values: list = field(default_factory=list)       # numbers aligned to bar_categories
+    # Data (Budget vs Actual) chart. Supports one OR several line items:
+    #   data_categories -> the line-item labels (e.g. ["Contributions"] or
+    #                      ["Contributions", "Grants", "Program Revenue"])
+    #   data_series     -> the bar-chart series (Actual, Budgeted), each with one
+    #                      value per line item, aligned to data_categories.
+    data_categories: list = field(default_factory=list)
+    data_series: list[Series] = field(default_factory=list)
     ok: bool = False        # True only if we recovered at least some real numbers
     note: str = ""          # human-readable reason when ok is False
 
@@ -176,23 +181,23 @@ def extract_dashboard_data(source) -> DashboardData:
 
     if bar_charts:
         bar = bar_charts[0]
-        vals, names = [], []
-        for i, ser in enumerate(bar.series[:2]):
-            names.append(_series_name(wb, ser, ["Actual", "Budgeted"][i] if i < 2 else f"Bar {i}"))
-            sv = _series_values(wb, ser)
-            # A budget-vs-actual bar is usually one number per series.
-            nums = [x for x in sv if isinstance(x, (int, float))]
-            vals.append(nums[-1] if nums else None)
-        data.bar_categories = names
-        data.bar_values = vals
+        cats = []
+        for i, ser in enumerate(bar.series):
+            default_name = ["Actual", "Budgeted"][i] if i < 2 else f"Series {i + 1}"
+            name = _series_name(wb, ser, default_name)
+            values = _series_values(wb, ser)  # one value per line item
+            data.data_series.append(Series(name=name, values=values))
+            if not cats:
+                cats = _series_categories(wb, ser)
+        data.data_categories = [str(c) for c in cats] if cats else (
+            ["Contributions"] if data.data_series else []
+        )
 
     # We consider the extract successful if we recovered any real numbers at all.
     def _has_numbers(series_list):
         return any(any(v is not None for v in s.values) for s in series_list)
 
-    if _has_numbers(data.income) or _has_numbers(data.expense) or any(
-        v is not None for v in data.bar_values
-    ):
+    if _has_numbers(data.income) or _has_numbers(data.expense) or _has_numbers(data.data_series):
         data.ok = True
     else:
         data.note = (

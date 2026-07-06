@@ -106,45 +106,103 @@ def _fmt(v):
     return f"{v:,.0f}" if abs(v) >= 1000 else f"{v:,.1f}"
 
 
-def _draw_data(ax, bar_cats, bar_vals, actual_color, budget_color, axis_min,
-               title, is_sample, chart_type):
-    """Draw the Data (Actual vs Budgeted) chart.
+_DATA_FALLBACK_COLORS = ["#8895A7", "#B7C0CC", "#5C6A7D"]  # for any series beyond Actual/Budgeted
 
-    Default is a HORIZONTAL bar chart with Budgeted on top and Actual on the
-    bottom, matching the real Executive Director's Report dashboard. `bar_cats`
-    /`bar_vals` arrive as [Actual, Budgeted]; plotting in that order puts Actual
-    at y=0 (bottom) and Budgeted at y=1 (top). The chart-type toggle can switch
-    this single chart to a line instead.
+
+def _num(v):
+    return float(v) if isinstance(v, (int, float)) else np.nan
+
+
+def _draw_data(ax, categories, series_list, actual_color, budget_color, axis_min,
+               title, is_sample, chart_type):
+    """Draw the Data (Budget vs Actual) chart.
+
+    Default is a HORIZONTAL grouped bar chart with Budgeted on top and Actual on
+    the bottom within each line item, matching the real Executive Director's
+    Report dashboard. Works for a single line item (e.g. "Contributions") or
+    several (e.g. Contributions, Grants, Program Revenue) -- one group per line
+    item, so extra Data rows just add groups. The chart-type toggle can switch
+    it to a line instead.
     """
-    n = len(bar_vals)
-    colors = [actual_color, budget_color][:n]
+    if not categories or not series_list:
+        ax.set_title(title + (" (sample)" if is_sample else ""), fontsize=10, fontweight="bold")
+        return
+
+    def color_for(name, i):
+        n = (name or "").lower()
+        if "budget" in n:
+            return budget_color
+        if "actual" in n:
+            return actual_color
+        return _DATA_FALLBACK_COLORS[i % len(_DATA_FALLBACK_COLORS)]
+
+    def sort_key(s):
+        n = (s.name or "").lower()
+        return 0 if "budget" in n else (1 if "actual" in n else 2)
+
+    series_sorted = sorted(series_list, key=sort_key)  # Budgeted first -> drawn on top
+    n_cat = len(categories)
+    n_ser = len(series_sorted)
+
+    show_legend = False
     if chart_type == "line":
-        x = np.arange(n)
-        ax.plot(x, bar_vals, color=actual_color, linewidth=2, marker="o")
+        x = np.arange(n_cat)
+        for i, s in enumerate(series_sorted):
+            ax.plot(x, [_num(v) for v in s.values[:n_cat]], marker="o",
+                    color=color_for(s.name, i), linewidth=2, label=s.name)
         ax.set_xticks(x)
-        ax.set_xticklabels(bar_cats[:n])
+        ax.set_xticklabels(categories)
         ax.set_ylim(bottom=axis_min)
         ax.grid(True, axis="y", alpha=0.25, linewidth=0.6)
-        for i, v in enumerate(bar_vals):
-            ax.text(i, v, _fmt(v), ha="center", va="bottom", fontsize=8)
-    else:  # horizontal bar (default): Budgeted on top, Actual on bottom
-        y = np.arange(n)
-        ax.barh(y, bar_vals, color=colors, height=0.6)
-        ax.set_yticks(y)
-        ax.set_yticklabels(bar_cats[:n])
+        show_legend = n_ser > 1
+    elif n_cat == 1:
+        # Single line item: one labeled bar per series (Budgeted on top, Actual
+        # on the bottom) -- clearer than a legend when there's only one item.
+        ypos = np.arange(n_ser)[::-1]  # series 0 (Budgeted) at the top
+        for i, s in enumerate(series_sorted):
+            v = _num(s.values[0]) if s.values else np.nan
+            ax.barh(ypos[i], v, height=0.6, color=color_for(s.name, i))
+            if not np.isnan(v):
+                ax.text(v, ypos[i], f" {_fmt(v)}", va="center", ha="left", fontsize=8)
+        ax.set_yticks(ypos)
+        ax.set_yticklabels([s.name for s in series_sorted])
         ax.set_xlim(left=axis_min)
         ax.grid(True, axis="x", alpha=0.25, linewidth=0.6)
-        for i, v in enumerate(bar_vals):
-            ax.text(v, i, f" {_fmt(v)}", va="center", ha="left", fontsize=8)
+    else:  # several line items: grouped horizontal bars + legend
+        h = 0.8 / max(n_ser, 1)
+        base = np.array([n_cat - 1 - i for i in range(n_cat)], dtype=float)  # cat[0] on top
+        for i, s in enumerate(series_sorted):
+            offset = ((n_ser - 1) / 2 - i) * h            # series 0 (Budgeted) highest -> top
+            vals = [_num(v) for v in s.values[:n_cat]]
+            ypos = base + offset
+            ax.barh(ypos, vals, height=h * 0.9, color=color_for(s.name, i), label=s.name)
+            for yv, v in zip(ypos, vals):
+                if not np.isnan(v):
+                    ax.text(v, yv, f" {_fmt(v)}", va="center", ha="left", fontsize=7.5)
+        ax.set_yticks(base)
+        ax.set_yticklabels(categories)
+        ax.set_xlim(left=axis_min)
+        ax.grid(True, axis="x", alpha=0.25, linewidth=0.6)
+        show_legend = True
+
     ax.set_title(title + (" (sample)" if is_sample else ""), fontsize=10, fontweight="bold")
     ax.tick_params(labelsize=8)
     for spine in ("top", "right"):
         ax.spines[spine].set_visible(False)
+    if show_legend:
+        ax.legend(fontsize=7, frameon=False, loc="lower right")
 
 
 def _sample_series(sample_arrays, prefix):
     from lib.dashboard_data import Series
     return [Series(name=f"{prefix} FY{i + 1}", values=list(a)) for i, a in enumerate(sample_arrays)]
+
+
+def _sample_data_series():
+    """Placeholder Budgeted/Actual for one line item, used when no workbook is uploaded."""
+    from lib.dashboard_data import Series
+    return [Series(name="Budgeted", values=[_SAMPLE_BUDGET]),
+            Series(name="Actual", values=[_SAMPLE_ACTUAL])]
 
 
 def render_preview(profile: OrgProfile, logo_bytes: bytes | None = None, data=None):
@@ -155,29 +213,31 @@ def render_preview(profile: OrgProfile, logo_bytes: bytes | None = None, data=No
         income = data.income or _sample_series(_SAMPLE_INCOME, "Income")
         expense = data.expense or _sample_series(_SAMPLE_EXPENSE, "Expense")
         categories = data.categories or _MONTHS
-        bar_cats = data.bar_categories or ["Actual", "Budgeted"]
-        bar_vals = [v if isinstance(v, (int, float)) else 0.0 for v in (data.bar_values or [_SAMPLE_ACTUAL, _SAMPLE_BUDGET])]
+        data_categories = data.data_categories or ["Contributions"]
+        data_series = data.data_series or _sample_data_series()
     else:
         income = _sample_series(_SAMPLE_INCOME, "Income")
         expense = _sample_series(_SAMPLE_EXPENSE, "Expense")
         categories = _MONTHS
-        bar_cats = ["Actual", "Budgeted"]
-        bar_vals = [_SAMPLE_ACTUAL, _SAMPLE_BUDGET]
+        data_categories = ["Contributions"]
+        data_series = _sample_data_series()
 
     is_sample = not use_real
 
     fig = plt.figure(figsize=(10, 7.4), dpi=120)
     fig.patch.set_facecolor("white")
 
+    # The 2x2 chart grid is inset from the left so multi-word Data line-item
+    # labels (e.g. "Program Revenue") aren't clipped; the banner spans the full
+    # width separately so it isn't pulled in by that inset.
     gs = fig.add_gridspec(
-        nrows=3, ncols=2,
-        height_ratios=[0.85, 2.15, 2.15],
-        hspace=0.55, wspace=0.2,
-        left=0.06, right=0.97, top=0.98, bottom=0.09,
+        nrows=2, ncols=2,
+        hspace=0.55, wspace=0.28,
+        left=0.14, right=0.97, top=0.80, bottom=0.09,
     )
 
-    # --- Header banner (mirrors Dashboard!A1:A3 fills) ---
-    banner_ax = fig.add_subplot(gs[0, :])
+    # --- Header banner (mirrors Dashboard!A1:A3 fills), full width ---
+    banner_ax = fig.add_axes([0.0, 0.87, 1.0, 0.11])
     banner_ax.set_xlim(0, 1)
     banner_ax.set_ylim(0, 1)
     banner_ax.axis("off")
@@ -197,25 +257,25 @@ def render_preview(profile: OrgProfile, logo_bytes: bytes | None = None, data=No
         except Exception:
             pass  # bad/unsupported image -- preview just skips it, doesn't crash
 
-    # --- Top-left: Data (Actual vs Budgeted) ---
-    data_ax = fig.add_subplot(gs[1, 0])
-    _draw_data(data_ax, bar_cats, bar_vals, profile.bar_actual_color,
+    # --- Top-left: Data (Budget vs Actual, one or more line items) ---
+    data_ax = fig.add_subplot(gs[0, 0])
+    _draw_data(data_ax, data_categories, data_series, profile.bar_actual_color,
                profile.bar_budget_color, profile.bar_axis_min, "Data", is_sample,
                profile.data_chart_type)
 
     # --- Top-right: At a glance (analysis box) ---
-    kpi_ax = fig.add_subplot(gs[1, 1])
+    kpi_ax = fig.add_subplot(gs[0, 1])
     kpi_ax.axis("off")
     _draw_summary(kpi_ax, income, expense, is_sample)
 
     # --- Bottom-left: Income ---
-    income_ax = fig.add_subplot(gs[2, 0])
+    income_ax = fig.add_subplot(gs[1, 0])
     _draw_multiseries(income_ax, income, categories, profile.display_order,
                       profile.line_colors, profile.line_axis_min, "Income", is_sample,
                       profile.income_chart_type)
 
     # --- Bottom-right: Expense ---
-    expense_ax = fig.add_subplot(gs[2, 1])
+    expense_ax = fig.add_subplot(gs[1, 1])
     _draw_multiseries(expense_ax, expense, categories, profile.display_order,
                       profile.line_colors, profile.line_axis_min, "Expense", is_sample,
                       profile.expense_chart_type)
