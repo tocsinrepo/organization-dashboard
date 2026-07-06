@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+venv/
+
+# Each organization's real logo/colors stay on their own machine only --
+# never committed, especially once this repo goes public.
+orgs/*
+!orgs/.gitkeep
