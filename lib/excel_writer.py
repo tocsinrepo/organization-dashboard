@@ -206,6 +206,11 @@ def apply_profile_to_workbook(template_xlsx_path: str | Path, profile: OrgProfil
             chart.series = reordered
             chart.y_axis.scaling.min = profile.line_axis_min
         else:  # Data: series[0] = Actual, series[1] = Budgeted
+            # The standard Data chart is a HORIZONTAL bar (Budgeted on top,
+            # Actual on bottom). Preserve that when it stays/becomes a bar; the
+            # template's own series order already gives Budgeted-on-top.
+            if isinstance(chart, BarChart):
+                chart.type = "bar"
             colors = [profile.bar_actual_color, profile.bar_budget_color]
             for si in range(min(2, len(chart.series))):
                 chart.series[si].graphicalProperties = _series_props(colors[si], final_is_line)

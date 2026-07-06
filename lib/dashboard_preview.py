@@ -101,20 +101,45 @@ def _draw_multiseries(ax, series_list, categories, display_order, line_colors,
     ax.legend(fontsize=6, loc="upper left", frameon=False, ncol=2)
 
 
+def _fmt(v):
+    """Compact value label: no decimals for real ($) figures, one for small samples."""
+    return f"{v:,.0f}" if abs(v) >= 1000 else f"{v:,.1f}"
+
+
 def _draw_data(ax, bar_cats, bar_vals, actual_color, budget_color, axis_min,
                title, is_sample, chart_type):
-    """Draw the Data (Actual vs Budgeted) chart as bars or a line."""
-    colors = [actual_color, budget_color]
-    x = np.arange(len(bar_vals))
+    """Draw the Data (Actual vs Budgeted) chart.
+
+    Default is a HORIZONTAL bar chart with Budgeted on top and Actual on the
+    bottom, matching the real Executive Director's Report dashboard. `bar_cats`
+    /`bar_vals` arrive as [Actual, Budgeted]; plotting in that order puts Actual
+    at y=0 (bottom) and Budgeted at y=1 (top). The chart-type toggle can switch
+    this single chart to a line instead.
+    """
+    n = len(bar_vals)
+    colors = [actual_color, budget_color][:n]
     if chart_type == "line":
+        x = np.arange(n)
         ax.plot(x, bar_vals, color=actual_color, linewidth=2, marker="o")
-    else:
-        ax.bar(bar_cats[:len(bar_vals)], bar_vals, color=colors[:len(bar_vals)], width=0.55)
-    ax.set_xticks(x)
-    ax.set_xticklabels(bar_cats[:len(bar_vals)])
-    for i, v in enumerate(bar_vals):
-        ax.text(i, v, f"{v:,.1f}", ha="center", va="bottom", fontsize=8)
-    _tidy(ax, axis_min, title, is_sample)
+        ax.set_xticks(x)
+        ax.set_xticklabels(bar_cats[:n])
+        ax.set_ylim(bottom=axis_min)
+        ax.grid(True, axis="y", alpha=0.25, linewidth=0.6)
+        for i, v in enumerate(bar_vals):
+            ax.text(i, v, _fmt(v), ha="center", va="bottom", fontsize=8)
+    else:  # horizontal bar (default): Budgeted on top, Actual on bottom
+        y = np.arange(n)
+        ax.barh(y, bar_vals, color=colors, height=0.6)
+        ax.set_yticks(y)
+        ax.set_yticklabels(bar_cats[:n])
+        ax.set_xlim(left=axis_min)
+        ax.grid(True, axis="x", alpha=0.25, linewidth=0.6)
+        for i, v in enumerate(bar_vals):
+            ax.text(v, i, f" {_fmt(v)}", va="center", ha="left", fontsize=8)
+    ax.set_title(title + (" (sample)" if is_sample else ""), fontsize=10, fontweight="bold")
+    ax.tick_params(labelsize=8)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
 
 
 def _sample_series(sample_arrays, prefix):
