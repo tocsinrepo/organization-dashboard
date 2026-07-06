@@ -1,10 +1,10 @@
 """
 Organization Dashboard Styler
 ------------------------------
-Streamlit app: pick or create your organization, adjust its logo, header
-text, and color scheme, watch the preview update live, save the profile so
-it's remembered next time, and (optionally) apply it into a real copy of
-your dashboard workbook.
+Streamlit app: pick or create your organization, choose a color scheme (or
+fine-tune individual chart colors), adjust its logo and header text, watch
+the preview update live, save the profile so it's remembered next time, and
+(optionally) apply it into a real copy of your dashboard workbook.
 
 Run it with:
     streamlit run app.py
@@ -18,9 +18,18 @@ from tempfile import NamedTemporaryFile
 import streamlit as st
 
 from lib import org_profile as op
+from lib.app_state import (
+    WIDGET_KEYS, LINE_COLOR_KEYS, ORDER_POSITION_KEYS, SCHEME_KEY,
+    LAST_APPLIED_SCHEME_KEY, LOADED_SLUG_KEY, ORG_CHOICE_KEY,
+    CUSTOM_SCHEME_LABEL,
+    field_updates_to_widget_state, widget_state_to_field_updates,
+    detect_scheme, scheme_options,
+)
 from lib.dashboard_preview import render_preview
 from lib.excel_writer import TemplateMismatchError, apply_profile_to_workbook
-from lib.settings_form import SettingsFormError, build_settings_form, parse_settings_form
+from lib.settings_form import (
+    SettingsFormError, build_settings_form, parse_settings_form, SCHEMES,
+)
 
 st.set_page_config(page_title="Organization Dashboard Styler", layout="wide")
 st.title("Organization Dashboard Styler")
@@ -30,33 +39,65 @@ st.caption(
     "to your real dashboard file whenever you're ready."
 )
 
+
+def _seed_widget_state(profile: op.OrgProfile) -> None:
+    """Push every widget key from `profile` into st.session_state,
+    overwriting whatever was there, and set the scheme dropdown to whichever
+    preset (or "Custom") those colors actually match."""
+    for k, v in field_updates_to_widget_state(profile.to_dict()).items():
+        st.session_state[k] = v
+    detected = detect_scheme(profile.to_dict())
+    st.session_state[SCHEME_KEY] = detected
+    st.session_state[LAST_APPLIED_SCHEME_KEY] = detected
+
+
 # ---------------------------------------------------------------------------
 # 1. Choose or create an organization
 # ---------------------------------------------------------------------------
+# Streamlit forbids writing to st.session_state[key] for a widget that has
+# already been instantiated *this run* -- so "select this org after saving"
+# (below, in section 3) can't set ORG_CHOICE_KEY directly. Instead it leaves
+# a plain (non-widget) "_pending_org_choice" flag, applied here, before the
+# selectbox is created, on the very next run.
+if "_pending_org_choice" in st.session_state:
+    st.session_state[ORG_CHOICE_KEY] = st.session_state.pop("_pending_org_choice")
+
 existing_orgs = op.list_orgs()
 choice = st.sidebar.selectbox(
     "Organization",
     options=["+ New organization"] + existing_orgs,
     index=0,
+    key=ORG_CHOICE_KEY,
 )
 
-if choice == "+ New organization":
-    new_name = st.sidebar.text_input("New organization name", value="")
-    slug = op.slugify(new_name) if new_name else None
-    profile = op.OrgProfile(org_name=new_name or "Your Organization")
-else:
-    slug = choice
-    profile = op.load_profile(slug)
+# If we just switched to a different org (or this is the very first run ever
+# -- LOADED_SLUG_KEY won't exist yet), seed every widget's session_state
+# from that org's saved profile (or blank defaults for a new org) and rerun
+# immediately. This is required, not optional: Streamlit widgets that already
+# rendered once keep whatever's in their own session_state and silently
+# ignore a changed `value=` argument on later reruns -- see app_state.py's
+# module docstring for the full explanation (this is what caused the
+# settings-form-upload bug Jon reported).
+if st.session_state.get(LOADED_SLUG_KEY) != choice:
+    fresh_profile = op.OrgProfile() if choice == "+ New organization" else op.load_profile(choice)
+    _seed_widget_state(fresh_profile)
+    st.session_state[LOADED_SLUG_KEY] = choice
+    st.rerun()
 
 st.sidebar.divider()
 
 # ---------------------------------------------------------------------------
 # 1b. Settings form -- an alternative to the widgets below. Download a copy
 # of the current settings as an Excel form, edit it there instead of using
-# the color pickers, then upload it back here. Either path lands on the same
-# OrgProfile, so this has to run before the widgets below are drawn, so an
-# upload can override their defaults.
+# the color pickers, then upload it back here. By this point in the script,
+# every widget key above is guaranteed already seeded (see the block above),
+# so reading st.session_state directly here reflects the true current state
+# even though most of those widgets haven't been drawn yet this run.
 # ---------------------------------------------------------------------------
+current_profile = op.OrgProfile(
+    **widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile())
+)
+
 with st.sidebar.expander("Prefer Excel? Use a settings form instead", expanded=False):
     st.caption(
         "Download a form pre-filled with the values below, edit it in Excel, "
@@ -64,17 +105,25 @@ with st.sidebar.expander("Prefer Excel? Use a settings form instead", expanded=F
     )
     st.download_button(
         "Download settings form",
-        data=build_settings_form(profile),
-        file_name=f"{(slug or 'organization')}-settings-form.xlsx",
+        data=build_settings_form(current_profile),
+        file_name=f"{(choice if choice != '+ New organization' else 'organization')}-settings-form.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
     uploaded_form = st.file_uploader("Upload a filled-in settings form", type=["xlsx"], key="settings_form")
-    if uploaded_form is not None:
+    if uploaded_form is not None and uploaded_form.file_id != st.session_state.get("_processed_upload_id"):
         try:
-            for field, value in parse_settings_form(uploaded_form).items():
-                setattr(profile, field, value)
+            updates = parse_settings_form(uploaded_form)
+            for k, v in field_updates_to_widget_state(updates).items():
+                st.session_state[k] = v
+            merged = widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile())
+            detected = detect_scheme(merged)
+            st.session_state[SCHEME_KEY] = detected
+            st.session_state[LAST_APPLIED_SCHEME_KEY] = detected
+            st.session_state["_processed_upload_id"] = uploaded_form.file_id
             st.success("Settings form applied below and in the preview.")
+            st.rerun()
         except SettingsFormError as e:
+            st.session_state["_processed_upload_id"] = uploaded_form.file_id
             st.error(str(e))
 
 # ---------------------------------------------------------------------------
@@ -84,66 +133,79 @@ col_controls, col_preview = st.columns([1, 1.3])
 
 with col_controls:
     st.subheader("Header text")
-    profile.org_name = st.text_input("Organization name (top banner)", value=profile.org_name)
-    profile.header_subtitle = st.text_input("Header subtitle", value=profile.header_subtitle)
+    st.text_input("Organization name (top banner)", key=WIDGET_KEYS["org_name"])
+    st.text_input("Header subtitle", key=WIDGET_KEYS["header_subtitle"])
 
     st.subheader("Logo")
-    uploaded_logo = st.file_uploader("Upload a logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
+    uploaded_logo = st.file_uploader("Upload a logo (PNG/JPG)", type=["png", "jpg", "jpeg"], key="logo_upload")
     logo_bytes = None
     if uploaded_logo is not None:
         logo_bytes = uploaded_logo.getvalue()
-    elif slug and op.logo_path(slug):
-        logo_bytes = op.logo_path(slug).read_bytes()
+    elif choice != "+ New organization" and op.logo_path(choice):
+        logo_bytes = op.logo_path(choice).read_bytes()
 
-    st.subheader("Colors")
-    profile.banner_primary = st.color_picker("Banner - primary", profile.banner_primary)
-    profile.banner_secondary = st.color_picker("Banner - secondary", profile.banner_secondary)
-    profile.accent = st.color_picker("Accent strip", profile.accent)
-
-    st.markdown("**Contributions bar chart**")
-    profile.bar_actual_color = st.color_picker("Actual", profile.bar_actual_color)
-    profile.bar_budget_color = st.color_picker("Budgeted", profile.bar_budget_color)
-    profile.bar_axis_min = st.number_input(
-        "Bar chart axis minimum ($)", value=float(profile.bar_axis_min), step=1000.0
+    st.subheader("Color scheme")
+    current_colors = widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile())
+    options = scheme_options(current_colors)
+    if st.session_state.get(SCHEME_KEY) not in options:
+        st.session_state[SCHEME_KEY] = options[0]
+    st.selectbox(
+        "Pick a preset -- sets the banner, accent, bar, and line colors together",
+        options=options,
+        key=SCHEME_KEY,
     )
+
+    chosen_scheme = st.session_state[SCHEME_KEY]
+    if chosen_scheme != CUSTOM_SCHEME_LABEL and chosen_scheme != st.session_state.get(LAST_APPLIED_SCHEME_KEY):
+        # User just picked a different real preset -- cascade its 6 color
+        # fields (including the now-hidden banner colors) into every
+        # relevant widget key, then rerun so the pickers below show the new
+        # values instead of ignoring them.
+        for k, v in field_updates_to_widget_state(SCHEMES[chosen_scheme]).items():
+            st.session_state[k] = v
+        st.session_state[LAST_APPLIED_SCHEME_KEY] = chosen_scheme
+        st.rerun()
+
+    st.caption(
+        "Banner colors follow the scheme above. Fine-tune the accent, bar, "
+        "or line colors below if you want to nudge just one of them -- "
+        "picking a different scheme resets all of these again."
+    )
+    st.markdown("**Contributions bar chart**")
+    st.color_picker("Actual", key=WIDGET_KEYS["bar_actual_color"])
+    st.color_picker("Budgeted", key=WIDGET_KEYS["bar_budget_color"])
+    st.number_input("Bar chart axis minimum ($)", key=WIDGET_KEYS["bar_axis_min"], step=1000.0)
+
+    st.color_picker("Accent strip", key=WIDGET_KEYS["accent"])
 
     st.markdown("**Income / Expense line colors** (4 fiscal years)")
     line_cols = st.columns(4)
-    new_line_colors = []
     for i, c in enumerate(line_cols):
-        default = profile.line_colors[i] if i < len(profile.line_colors) else "#888888"
-        new_line_colors.append(c.color_picker(f"Series {i + 1}", default, key=f"line{i}"))
-    profile.line_colors = new_line_colors
+        c.color_picker(f"Series {i + 1}", key=LINE_COLOR_KEYS[i])
 
     st.markdown("**Fiscal year display order** (1 = first in legend and drawn on top)")
-    display_order = list(profile.display_order or [0, 1, 2, 3])
-    positions_by_series = [0, 0, 0, 0]
-    for slot, series_idx in enumerate(display_order):
-        if 0 <= series_idx < 4:
-            positions_by_series[series_idx] = slot + 1
     order_cols = st.columns(4)
-    new_positions = []
     for i, c in enumerate(order_cols):
-        new_positions.append(
-            c.number_input(f"Series {i + 1} position", min_value=1, max_value=4,
-                            value=positions_by_series[i] or (i + 1), step=1, key=f"order{i}")
-        )
-    if sorted(new_positions) == [1, 2, 3, 4]:
-        new_display_order = [0, 0, 0, 0]
-        for series_idx, pos in enumerate(new_positions):
-            new_display_order[pos - 1] = series_idx
-        profile.display_order = new_display_order
-    else:
+        c.number_input(f"Series {i + 1} position", min_value=1, max_value=4, step=1, key=ORDER_POSITION_KEYS[i])
+
+    positions = [st.session_state[k] for k in ORDER_POSITION_KEYS]
+    if sorted(positions) != [1, 2, 3, 4]:
         st.warning("Each series needs a different position (1, 2, 3, 4, no repeats) -- keeping the last valid order.")
 
-    profile.line_axis_min = st.number_input(
-        "Line chart axis minimum ($)", value=float(profile.line_axis_min), step=1000.0
-    )
+    st.number_input("Line chart axis minimum ($)", key=WIDGET_KEYS["line_axis_min"], step=1000.0)
+
+profile = op.OrgProfile(**widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile()))
+
+if choice == "+ New organization":
+    org_name_now = st.session_state.get(WIDGET_KEYS["org_name"], "").strip()
+    slug = op.slugify(org_name_now) if org_name_now else None
+else:
+    slug = choice
 
 with col_preview:
     st.subheader("Live preview")
     fig = render_preview(profile, logo_bytes=logo_bytes)
-    st.pyplot(fig, use_container_width=True)
+    st.pyplot(fig, width="stretch")
 
 st.divider()
 
@@ -166,6 +228,7 @@ with save_col:
             uploaded_logo_bytes=uploaded_logo.getvalue() if uploaded_logo is not None else None,
             uploaded_logo_ext=ext,
         )
+        st.session_state["_pending_org_choice"] = slug
         st.success(f"Saved. '{slug}' will be remembered next time you open this app.")
         st.rerun()
 
