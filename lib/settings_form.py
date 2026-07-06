@@ -53,32 +53,40 @@ from openpyxl.formatting.rule import FormulaRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from lib.org_profile import OrgProfile
+from lib.org_profile import (
+    OrgProfile,
+    DEFAULT_BANNER_PRIMARY, DEFAULT_BANNER_SECONDARY, DEFAULT_ACCENT,
+    DEFAULT_LINE_COLORS, DEFAULT_BAR_ACTUAL, DEFAULT_BAR_BUDGET,
+    CORNERSTONES_CLASSIC_BANNER_PRIMARY, CORNERSTONES_CLASSIC_BANNER_SECONDARY,
+    CORNERSTONES_CLASSIC_ACCENT, CORNERSTONES_CLASSIC_LINE_COLORS,
+    CORNERSTONES_CLASSIC_BAR_ACTUAL, CORNERSTONES_CLASSIC_BAR_BUDGET,
+)
 
 SHEET_NAME = "Settings"
 SCHEMES_SHEET_NAME = "Schemes"
 
 # Five preset color schemes. Field names match OrgProfile attributes so a
 # scheme dict can be splatted straight onto a profile. "Purple & Orange
-# (Full Send style)" is the default -- these are the *exact* hex values
-# confirmed (2026-07-07) from the real Full Send Incorporated sample file's
-# banner fills and chart series colors, not approximated.
+# (Full Send style)" is the default -- both here and as OrgProfile's own
+# DEFAULT_* constants (imported above, not re-typed) so a brand-new org's
+# web-app preview and this form's dropdown default can never disagree with
+# each other again.
 SCHEMES: dict[str, dict] = {
     "Purple & Orange (Full Send style)": {
-        "banner_primary": "#4D148C",
-        "banner_secondary": "#341060",
-        "accent": "#FF6600",
-        "bar_actual_color": "#FF6600",
-        "bar_budget_color": "#4D148C",
-        "line_colors": ["#C7A9E0", "#8E5BC4", "#4D148C", "#FF6600"],
+        "banner_primary": DEFAULT_BANNER_PRIMARY,
+        "banner_secondary": DEFAULT_BANNER_SECONDARY,
+        "accent": DEFAULT_ACCENT,
+        "bar_actual_color": DEFAULT_BAR_ACTUAL,
+        "bar_budget_color": DEFAULT_BAR_BUDGET,
+        "line_colors": list(DEFAULT_LINE_COLORS),
     },
     "Cornerstones Classic (teal & gold)": {
-        "banner_primary": "#14495A",
-        "banner_secondary": "#0C3540",
-        "accent": "#F2A900",
-        "bar_actual_color": "#F2A900",
-        "bar_budget_color": "#D2D2D7",
-        "line_colors": ["#B8D4D9", "#5FA8B8", "#1F5B6B", "#F2A900"],
+        "banner_primary": CORNERSTONES_CLASSIC_BANNER_PRIMARY,
+        "banner_secondary": CORNERSTONES_CLASSIC_BANNER_SECONDARY,
+        "accent": CORNERSTONES_CLASSIC_ACCENT,
+        "bar_actual_color": CORNERSTONES_CLASSIC_BAR_ACTUAL,
+        "bar_budget_color": CORNERSTONES_CLASSIC_BAR_BUDGET,
+        "line_colors": list(CORNERSTONES_CLASSIC_LINE_COLORS),
     },
     "Navy & Silver": {
         "banner_primary": "#1B3A5C",

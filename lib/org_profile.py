@@ -5,7 +5,7 @@ Each organization gets its own folder under orgs/<slug>/ containing:
   - profile.json   (org name, header text, colors)
   - logo.<ext>     (their uploaded logo image, any format Pillow can read)
 
-Nothing here touches the dashboard workbook itself — that's excel_writer.py.
+Nothing here touches the dashboard workbook itself -- that's excel_writer.py.
 This module only knows about the small JSON "branding" record.
 """
 
@@ -20,16 +20,35 @@ from typing import Optional
 
 ORGS_DIR = Path(__file__).resolve().parent.parent / "orgs"
 
-# Defaults match the current Cornerstones REV10 dashboard, confirmed against
-# the real workbook (Dashboard!A1:A3 fills, chart series colors) on 2026-07-06.
-DEFAULT_BANNER_PRIMARY = "#14495A"     # Dashboard!A1:K1 fill
-DEFAULT_BANNER_SECONDARY = "#0C3540"  # Dashboard!A2:K2 fill
-DEFAULT_ACCENT = "#F2A900"            # Dashboard!A3:M3 fill
-DEFAULT_LINE_COLORS = ["#B8D4D9", "#5FA8B8", "#1F5B6B", "#F2A900"]  # series 0-3, both line charts
-DEFAULT_BAR_ACTUAL = "#F2A900"        # bar chart series "Actual"
-DEFAULT_BAR_BUDGET = "#D2D2D7"        # bar chart series "Budgeted"
+# Default scheme for a brand-new organization: "Purple & Orange (Full Send
+# style)" -- the exact hex values confirmed 2026-07-07 from the real Full
+# Send Incorporated sample file's banner fills and chart series colors, not
+# approximated. This is also SCHEMES["Purple & Orange (Full Send style)"]
+# in lib/settings_form.py -- that module imports these same constants
+# rather than repeating the hex values, so the two "defaults" can't drift
+# apart again the way they did briefly on 2026-07-07 (the settings form's
+# dropdown default was changed to purple/orange but these constants -- the
+# ones that actually drive a brand-new org's web-app preview -- were left
+# on the old teal/gold Cornerstones look, which Jon caught immediately).
+DEFAULT_BANNER_PRIMARY = "#4D148C"
+DEFAULT_BANNER_SECONDARY = "#341060"
+DEFAULT_ACCENT = "#FF6600"
+DEFAULT_LINE_COLORS = ["#C7A9E0", "#8E5BC4", "#4D148C", "#FF6600"]  # series 0-3, both line charts
+DEFAULT_BAR_ACTUAL = "#FF6600"        # bar chart series "Actual"
+DEFAULT_BAR_BUDGET = "#4D148C"        # bar chart series "Budgeted"
 DEFAULT_DISPLAY_ORDER = [0, 1, 2, 3]  # identity: series 0..3 shown/drawn in original order
 DEFAULT_AXIS_MIN = 0.0
+
+# The original Cornerstones REV10 look, confirmed against the real workbook
+# (Dashboard!A1:A3 fills, chart series colors) on 2026-07-06 -- preserved
+# here (and as the "Cornerstones Classic" scheme in settings_form.py) so it
+# isn't lost now that it's no longer the default.
+CORNERSTONES_CLASSIC_BANNER_PRIMARY = "#14495A"
+CORNERSTONES_CLASSIC_BANNER_SECONDARY = "#0C3540"
+CORNERSTONES_CLASSIC_ACCENT = "#F2A900"
+CORNERSTONES_CLASSIC_LINE_COLORS = ["#B8D4D9", "#5FA8B8", "#1F5B6B", "#F2A900"]
+CORNERSTONES_CLASSIC_BAR_ACTUAL = "#F2A900"
+CORNERSTONES_CLASSIC_BAR_BUDGET = "#D2D2D7"
 
 
 @dataclass
