@@ -20,6 +20,7 @@ import streamlit as st
 from lib import org_profile as op
 from lib.dashboard_preview import render_preview
 from lib.excel_writer import TemplateMismatchError, apply_profile_to_workbook
+from lib.settings_form import SettingsFormError, build_settings_form, parse_settings_form
 
 st.set_page_config(page_title="Organization Dashboard Styler", layout="wide")
 st.title("Organization Dashboard Styler")
@@ -50,6 +51,33 @@ else:
 st.sidebar.divider()
 
 # ---------------------------------------------------------------------------
+# 1b. Settings form -- an alternative to the widgets below. Download a copy
+# of the current settings as an Excel form, edit it there instead of using
+# the color pickers, then upload it back here. Either path lands on the same
+# OrgProfile, so this has to run before the widgets below are drawn, so an
+# upload can override their defaults.
+# ---------------------------------------------------------------------------
+with st.sidebar.expander("Prefer Excel? Use a settings form instead", expanded=False):
+    st.caption(
+        "Download a form pre-filled with the values below, edit it in Excel, "
+        "then upload it back here -- same result as using the controls directly."
+    )
+    st.download_button(
+        "Download settings form",
+        data=build_settings_form(profile),
+        file_name=f"{(slug or 'organization')}-settings-form.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    uploaded_form = st.file_uploader("Upload a filled-in settings form", type=["xlsx"], key="settings_form")
+    if uploaded_form is not None:
+        try:
+            for field, value in parse_settings_form(uploaded_form).items():
+                setattr(profile, field, value)
+            st.success("Settings form applied below and in the preview.")
+        except SettingsFormError as e:
+            st.error(str(e))
+
+# ---------------------------------------------------------------------------
 # 2. Branding controls
 # ---------------------------------------------------------------------------
 col_controls, col_preview = st.columns([1, 1.3])
@@ -75,6 +103,9 @@ with col_controls:
     st.markdown("**Contributions bar chart**")
     profile.bar_actual_color = st.color_picker("Actual", profile.bar_actual_color)
     profile.bar_budget_color = st.color_picker("Budgeted", profile.bar_budget_color)
+    profile.bar_axis_min = st.number_input(
+        "Bar chart axis minimum ($)", value=float(profile.bar_axis_min), step=1000.0
+    )
 
     st.markdown("**Income / Expense line colors** (4 fiscal years)")
     line_cols = st.columns(4)
@@ -83,6 +114,31 @@ with col_controls:
         default = profile.line_colors[i] if i < len(profile.line_colors) else "#888888"
         new_line_colors.append(c.color_picker(f"Series {i + 1}", default, key=f"line{i}"))
     profile.line_colors = new_line_colors
+
+    st.markdown("**Fiscal year display order** (1 = first in legend and drawn on top)")
+    display_order = list(profile.display_order or [0, 1, 2, 3])
+    positions_by_series = [0, 0, 0, 0]
+    for slot, series_idx in enumerate(display_order):
+        if 0 <= series_idx < 4:
+            positions_by_series[series_idx] = slot + 1
+    order_cols = st.columns(4)
+    new_positions = []
+    for i, c in enumerate(order_cols):
+        new_positions.append(
+            c.number_input(f"Series {i + 1} position", min_value=1, max_value=4,
+                            value=positions_by_series[i] or (i + 1), step=1, key=f"order{i}")
+        )
+    if sorted(new_positions) == [1, 2, 3, 4]:
+        new_display_order = [0, 0, 0, 0]
+        for series_idx, pos in enumerate(new_positions):
+            new_display_order[pos - 1] = series_idx
+        profile.display_order = new_display_order
+    else:
+        st.warning("Each series needs a different position (1, 2, 3, 4, no repeats) -- keeping the last valid order.")
+
+    profile.line_axis_min = st.number_input(
+        "Line chart axis minimum ($)", value=float(profile.line_axis_min), step=1000.0
+    )
 
 with col_preview:
     st.subheader("Live preview")

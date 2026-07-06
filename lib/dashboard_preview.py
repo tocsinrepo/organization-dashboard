@@ -65,14 +65,24 @@ def render_preview(profile: OrgProfile, logo_bytes: bytes | None = None):
     bar_ax.set_title("Contributions (sample)", fontsize=9)
     bar_ax.set_ylabel("$M", fontsize=8)
     bar_ax.tick_params(labelsize=8)
+    bar_ax.set_ylim(bottom=profile.bar_axis_min)
 
     # --- Sample line chart (Income/Expense-style, 4 series) ---
+    # display_order[slot] = which original sample series appears in that slot;
+    # slot 0 is drawn first (bottom/behind) and listed first in the legend,
+    # matching how display_order couples legend + z-order in the real workbook.
     line_ax = fig.add_axes([0.54, 0.46, 0.42, 0.32])
-    for i, series in enumerate(_SAMPLE_LINES):
-        color = profile.line_colors[i] if i < len(profile.line_colors) else "#888888"
-        line_ax.plot(_MONTHS, series, color=color, linewidth=2)
+    display_order = profile.display_order or list(range(len(_SAMPLE_LINES)))
+    for slot, src_idx in enumerate(display_order):
+        if src_idx >= len(_SAMPLE_LINES):
+            continue
+        color = profile.line_colors[slot] if slot < len(profile.line_colors) else "#888888"
+        line_ax.plot(_MONTHS, _SAMPLE_LINES[src_idx], color=color, linewidth=2,
+                     label=f"Series {slot + 1}")
     line_ax.set_title("Income (sample, 4 fiscal years)", fontsize=9)
     line_ax.tick_params(labelsize=7, rotation=45)
+    line_ax.set_ylim(bottom=profile.line_axis_min)
+    line_ax.legend(fontsize=6, loc="upper left", frameon=False)
 
     # --- Footer ---
     footer_ax = fig.add_axes([0.0, 0.0, 1.0, 0.05])

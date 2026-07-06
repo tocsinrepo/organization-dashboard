@@ -24,6 +24,16 @@ REV10 workbook on 2026-07-06:
 If a future template revision changes this layout, update the constants and
 assumptions below rather than guessing -- re-inspect the real file first
 (see goal prompt, section 6, rule 4: render-and-look, don't assume).
+
+NOTE on display_order (2026-07-07): confirmed by direct save/reload testing
+that openpyxl re-sorts a chart's series physically by their `order` value
+when the file is saved, and Excel draws series in that same physical
+sequence. That means a series' legend position and its draw/z-order are NOT
+independently controllable through openpyxl -- setting one moves the other.
+So `display_order` intentionally controls both together: it's a single
+permutation of the 4 line-chart series, applied by physically reordering
+`chart.series` and reassigning idx/order 0-3 to match. Do not attempt to
+decouple legend order from z-order without re-testing this assumption first.
 """
 
 from __future__ import annotations
@@ -119,19 +129,29 @@ def apply_profile_to_workbook(template_xlsx_path: str | Path, profile: OrgProfil
             new_images.append(new_img)
         ws._images = new_images
 
-    # 4. Chart colors
+    # 4. Chart colors, display order (legend + z-order together), axis minimums
     line_colors = profile.line_colors
+    display_order = profile.display_order or list(range(4))
     for chart in ws._charts:
         if type(chart).__name__ == "LineChart":
-            for i, series in enumerate(chart.series):
-                color = line_colors[i] if i < len(line_colors) else "888888"
+            # Reorder series per display_order, then reassign idx/order 0..N-1
+            # to match the new physical sequence (see module docstring note).
+            original = list(chart.series)
+            reordered = [original[i] for i in display_order if i < len(original)]
+            for slot, series in enumerate(reordered):
+                series.idx = slot
+                series.order = slot
+                color = line_colors[slot] if slot < len(line_colors) else "888888"
                 series.graphicalProperties = GraphicalProperties(
                     ln=LineProperties(solidFill=_hex(color))
                 )
+            chart.series = reordered
+            chart.y_axis.scaling.min = profile.line_axis_min
         elif type(chart).__name__ == "BarChart":
             # Confirmed order: series[0] = Actual, series[1] = Budgeted
             chart.series[0].graphicalProperties = GraphicalProperties(solidFill=_hex(profile.bar_actual_color))
             chart.series[1].graphicalProperties = GraphicalProperties(solidFill=_hex(profile.bar_budget_color))
+            chart.y_axis.scaling.min = profile.bar_axis_min
 
     output_xlsx_path.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output_xlsx_path)

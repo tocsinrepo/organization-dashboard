@@ -28,6 +28,8 @@ DEFAULT_ACCENT = "#F2A900"            # Dashboard!A3:M3 fill
 DEFAULT_LINE_COLORS = ["#B8D4D9", "#5FA8B8", "#1F5B6B", "#F2A900"]  # series 0-3, both line charts
 DEFAULT_BAR_ACTUAL = "#F2A900"        # bar chart series "Actual"
 DEFAULT_BAR_BUDGET = "#D2D2D7"        # bar chart series "Budgeted"
+DEFAULT_DISPLAY_ORDER = [0, 1, 2, 3]  # identity: series 0..3 shown/drawn in original order
+DEFAULT_AXIS_MIN = 0.0
 
 
 @dataclass
@@ -41,6 +43,19 @@ class OrgProfile:
     bar_actual_color: str = DEFAULT_BAR_ACTUAL
     bar_budget_color: str = DEFAULT_BAR_BUDGET
     logo_filename: Optional[str] = None  # e.g. "logo.png", relative to the org's folder
+
+    # Display order for the 4 line-chart series: display_order[i] = which original
+    # series index (0-3) appears in slot i. This controls BOTH legend order and
+    # z-order/draw order together -- openpyxl re-sorts series by their `order`
+    # value on save, so the two can't be set independently (confirmed 2026-07-07
+    # by a direct save/reload test). Slot 0's color is line_colors[0], etc.
+    display_order: list = field(default_factory=lambda: list(DEFAULT_DISPLAY_ORDER))
+
+    # Value-axis minimums. bar_axis_min is the Contributions chart's value axis
+    # (drawn horizontally, so it reads as the "X axis" visually). line_axis_min
+    # is the Income/Expense charts' value axis (drawn vertically, the "Y axis").
+    bar_axis_min: float = DEFAULT_AXIS_MIN
+    line_axis_min: float = DEFAULT_AXIS_MIN
 
     def to_dict(self) -> dict:
         return asdict(self)

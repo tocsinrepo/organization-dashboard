@@ -1,15 +1,19 @@
 # Organization Dashboard Styler
 
-A tool that lets any organization set up their own logo, header text, and
-color scheme for their Executive Director's Report dashboard — with a live
-preview, and a button to apply it into their real Excel file.
+A tool that lets any organization set up their own logo, header text, color
+scheme, fiscal-year display order, and chart axis minimums for their
+Executive Director's Report dashboard — with a live preview, and a button
+to apply it into their real Excel file.
 
 Private for now. Will be made public once it's been tested.
 
 ## What it does
 
 1. Pick your organization (or create a new one).
-2. Type your header text, upload your logo, and pick your colors.
+2. Type your header text, upload your logo, pick your colors, choose which
+   fiscal year displays first, and set axis minimums. Prefer working in
+   Excel? Download a settings form instead, fill it in there, and upload it
+   back — same result either way.
 3. Watch the picture update instantly as you go.
 4. Click "Save" so it remembers your settings next time.
 5. Upload a copy of your real dashboard workbook and click "Apply branding"
@@ -17,6 +21,11 @@ Private for now. Will be made public once it's been tested.
 
 Each organization runs its own copy of this app on their own computer.
 Nobody's logo, colors, or data ever leaves their machine.
+
+**Note on fiscal-year display order:** "1st position" moves a year both to
+the front of the legend *and* to the top of the drawn lines together —
+Excel's file format doesn't allow reordering one without the other, so this
+app doesn't pretend otherwise.
 
 ## How to run it (step by step)
 
@@ -83,6 +92,7 @@ app.py                  Streamlit app (the screen you interact with)
 lib/org_profile.py      saves/loads each organization's settings
 lib/dashboard_preview.py draws the live on-screen preview
 lib/excel_writer.py      writes the branding into a real workbook copy
+lib/settings_form.py    builds/reads the downloadable Excel settings form
 orgs/                    where each organization's saved settings live
                          (never committed to this repo — stays on your computer)
 requirements.txt
@@ -90,8 +100,10 @@ requirements.txt
 
 ## Roadmap
 
-- **Now:** logo, header text, and color scheme (banners, bar chart, 4-series line charts).
+- **Now:** logo, header text, color scheme (banners, bar chart, 4-series line
+  charts), fiscal-year display order, axis minimums, and a downloadable/
+  uploadable Excel settings form as an alternative to the on-screen controls.
 - **Next:** switching a chart's type (e.g. bar to line).
-- **Next:** editing axis scaling and number formats (e.g. `$#,##0,K`).
+- **Next:** editing number formats (e.g. `$#,##0,K`).
 - **Later:** a blank starter template file so a brand-new organization doesn't
   need an existing Cornerstones-style file to start from.
