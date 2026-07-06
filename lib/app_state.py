@@ -48,6 +48,9 @@ WIDGET_KEYS = {
     "bar_budget_color": "w_bar_budget",
     "bar_axis_min": "w_bar_axis_min",
     "line_axis_min": "w_line_axis_min",
+    "income_chart_type": "w_income_type",
+    "expense_chart_type": "w_expense_type",
+    "data_chart_type": "w_data_type",
 }
 LINE_COLOR_KEYS = ["w_line0", "w_line1", "w_line2", "w_line3"]
 ORDER_POSITION_KEYS = ["w_order0", "w_order1", "w_order2", "w_order3"]  # 1-4, indexed by series i

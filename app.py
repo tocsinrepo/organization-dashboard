@@ -19,6 +19,7 @@ from tempfile import NamedTemporaryFile
 import streamlit as st
 
 from lib import org_profile as op
+from lib import storage
 from lib.app_state import (
     WIDGET_KEYS, LINE_COLOR_KEYS, ORDER_POSITION_KEYS, SCHEME_KEY,
     LAST_APPLIED_SCHEME_KEY, LOADED_SLUG_KEY, ORG_CHOICE_KEY,
@@ -34,6 +35,22 @@ from lib.settings_form import (
 )
 
 st.set_page_config(page_title="Organization Dashboard Styler", layout="wide")
+
+# Make the control tabs (Text & logo / Colors / Chart options) bolder and a
+# few points larger than Streamlit's default, per Jon's request -- they're the
+# main way to move between control groups, so they should read as headings.
+st.markdown(
+    """
+    <style>
+      .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p,
+      .stTabs [data-baseweb="tab"] p {
+          font-size: 1.18rem;
+          font-weight: 700;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 def _seed_widget_state(profile: op.OrgProfile) -> None:
@@ -60,7 +77,7 @@ if "_pending_org_choice" in st.session_state:
 
 st.sidebar.title("Organization Dashboard Styler")
 
-existing_orgs = op.list_orgs()
+existing_orgs = storage.list_orgs()
 choice = st.sidebar.selectbox(
     "Organization",
     options=["+ New organization"] + existing_orgs,
@@ -77,7 +94,7 @@ choice = st.sidebar.selectbox(
 # module docstring for the full explanation (this is what caused the
 # settings-form-upload bug Jon reported).
 if st.session_state.get(LOADED_SLUG_KEY) != choice:
-    fresh_profile = op.OrgProfile() if choice == "+ New organization" else op.load_profile(choice)
+    fresh_profile = op.OrgProfile() if choice == "+ New organization" else storage.load_profile(choice)
     _seed_widget_state(fresh_profile)
     st.session_state[LOADED_SLUG_KEY] = choice
     st.rerun()
@@ -151,8 +168,8 @@ with col_controls:
     logo_bytes = None
     if uploaded_logo is not None:
         logo_bytes = uploaded_logo.getvalue()
-    elif choice != "+ New organization" and op.logo_path(choice):
-        logo_bytes = op.logo_path(choice).read_bytes()
+    elif choice != "+ New organization":
+        logo_bytes = storage.logo_bytes(choice)
 
     with tab_colors:
         current_colors = widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile())
@@ -205,6 +222,21 @@ with col_controls:
         ac1.number_input("Bar chart axis min ($)", key=WIDGET_KEYS["bar_axis_min"], step=1000.0)
         ac2.number_input("Line chart axis min ($)", key=WIDGET_KEYS["line_axis_min"], step=1000.0)
 
+        st.markdown("**Chart type** (line or bar, per chart)")
+        tc1, tc2, tc3 = st.columns(3)
+        _type_opts = ["line", "bar"]
+        tc1.selectbox("Income", _type_opts, key=WIDGET_KEYS["income_chart_type"],
+                      format_func=str.capitalize)
+        tc2.selectbox("Expense", _type_opts, key=WIDGET_KEYS["expense_chart_type"],
+                      format_func=str.capitalize)
+        tc3.selectbox("Data", _type_opts, key=WIDGET_KEYS["data_chart_type"],
+                      format_func=str.capitalize)
+        st.caption(
+            "Switching a chart's type also changes it in the workbook you apply "
+            "to — open that file in Excel to confirm it looks right, as this "
+            "app can't fully verify Excel chart conversions on its own."
+        )
+
 profile = op.OrgProfile(**widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile()))
 
 if choice == "+ New organization":
@@ -240,11 +272,11 @@ with save_col:
         ext = "png"
         if uploaded_logo is not None:
             ext = uploaded_logo.name.rsplit(".", 1)[-1].lower()
-        op.save_profile(
+        storage.save_profile(
             slug,
             profile,
-            uploaded_logo_bytes=uploaded_logo.getvalue() if uploaded_logo is not None else None,
-            uploaded_logo_ext=ext,
+            logo_bytes=uploaded_logo.getvalue() if uploaded_logo is not None else None,
+            logo_ext=ext,
         )
         st.session_state["_pending_org_choice"] = slug
         st.success(f"Saved. '{slug}' will be remembered next time you open this app.")

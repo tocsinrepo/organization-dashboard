@@ -77,6 +77,13 @@ class OrgProfile:
     bar_axis_min: float = DEFAULT_AXIS_MIN
     line_axis_min: float = DEFAULT_AXIS_MIN
 
+    # Per-chart type, "line" or "bar". Defaults mirror the standard template
+    # (Income = line, Expense = line, Data = bar). Applied to both the live
+    # preview and the real workbook (excel_writer converts the chart type).
+    income_chart_type: str = "line"
+    expense_chart_type: str = "line"
+    data_chart_type: str = "bar"
+
     def to_dict(self) -> dict:
         return asdict(self)
 

@@ -16,9 +16,10 @@ Private for now. Will be made public once it's been tested.
    without a workbook the preview uses clearly-labeled sample numbers).
 3. Set your branding using the tabbed controls: **Text & logo**, **Colors**
    (banner, accent, bar, and line colors update together — fine-tune any single
-   one afterward), and **Chart options** (fiscal-year display order and axis
-   minimums). Prefer working in Excel? Download a settings form instead, fill it
-   in there, and upload it back — same result either way.
+   one afterward), and **Chart options** (fiscal-year display order, axis
+   minimums, and each chart's type — line or bar). Prefer working in Excel?
+   Download a settings form instead, fill it in there, and upload it back —
+   same result either way.
 4. Watch the picture update instantly as you go.
 5. Click "Save" so it remembers your settings next time.
 6. Click "Apply branding" to get a branded copy of the workbook you uploaded —
@@ -70,7 +71,8 @@ the real thing and is also the file that branding gets applied to.)
   upload your logo.
 - In the **Colors** tab: pick a color scheme — the picture on the right updates
   right away. Want to nudge just one color? Use the individual pickers.
-- In the **Chart options** tab: set fiscal-year display order and axis minimums.
+- In the **Chart options** tab: set fiscal-year display order, axis minimums,
+  and each chart's type (line or bar).
 
 **Step 7 — Save it.**
 Click "Save organization profile." Next time you open the app, your
@@ -100,7 +102,9 @@ organization's data) is on the roadmap — not built yet.
 
 ```
 app.py                  Streamlit app (the screen you interact with)
-lib/org_profile.py      saves/loads each organization's settings
+lib/org_profile.py      the OrgProfile record; saves/loads it to disk
+lib/storage.py          picks the storage backend: disk (local) or isolated
+                         per-session (hosted multi-tenant, MULTI_TENANT=1)
 lib/app_state.py        keeps the app's widgets, an OrgProfile, and the
                          chosen color scheme in sync (see its module
                          docstring if you're extending this file --
@@ -119,14 +123,34 @@ requirements.txt
 ## Roadmap
 
 - **Now:** a live preview of your organization's **real Income / Expense / Data
-  numbers** read from your uploaded workbook; logo, header text, a 5-preset
-  color scheme (Purple & Orange, Gold & Teal, Navy & Silver, Forest & Amber,
-  Slate & Crimson) that sets the banner/accent/bar/line colors together with the
-  option to fine-tune any single one afterward, fiscal-year display order, axis
-  minimums, and a downloadable/uploadable Excel settings form as an
-  alternative to the on-screen controls -- same 5 presets there too, so it
-  can be filled out entirely in Excel without ever opening the web app.
-- **Next:** switching a chart's type (e.g. bar to line).
+  numbers** read from your uploaded workbook, in a 2×2 layout (Data top-left, an
+  at-a-glance summary top-right, Income bottom-left, Expense bottom-right);
+  logo, header text, a 5-preset color scheme (Purple & Orange, Gold & Teal,
+  Navy & Silver, Blue & Sky, Slate & Crimson) that sets the banner/accent/bar/
+  line colors together with the option to fine-tune any single one afterward,
+  fiscal-year display order, axis minimums, **per-chart type switching (line or
+  bar)**, and a downloadable/uploadable Excel settings form as an alternative to
+  the on-screen controls — same presets and options there too.
 - **Next:** editing number formats (e.g. `$#,##0,K`).
 - **Later:** a blank starter template file so a brand-new organization doesn't
   need an existing sample file to start from.
+
+### Note on chart-type switching
+
+Changing a chart between line and bar updates both the live preview and the
+workbook you apply to. The conversion is verified in this project's tooling
+(LibreOffice), but a few Excel chart nuances can only be confirmed in Microsoft
+Excel itself — so open a converted workbook in Excel and give it a look before
+relying on it.
+
+### Hosting for more than one organization
+
+By default this app stores each organization's branding on disk (`orgs/`),
+which is correct when every organization runs its **own local copy**. If you
+host **one shared URL** (e.g. Streamlit Community Cloud) for several visitors,
+set the environment variable `MULTI_TENANT=1` (or a Streamlit secret
+`multi_tenant = true`) on that deployment. In that mode each browser session
+gets its **own isolated, in-memory** set of organizations — no visitor can see
+or overwrite another's — at the cost of those being ephemeral (they last for
+the session, not across restarts). Leave it unset for local use and disk
+persistence is unchanged.
