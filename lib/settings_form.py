@@ -76,6 +76,16 @@ SCHEMES_SHEET_NAME = "Schemes"
 # DEFAULT_* constants (imported above, not re-typed) so a brand-new org's
 # web-app preview and this form's dropdown default can never disagree with
 # each other again.
+#
+# RULE for line_colors (confirmed by Jon 2026-07-06): line_colors[3] -- the
+# 4th line series, which is the MOST CURRENT fiscal year -- must be the
+# scheme's DOMINANT color, so the current year visually stands out. The other
+# three (line_colors[0..2], older years) are a light->dark gradient of the
+# supporting family. Dominant means the contrasting accent where the scheme
+# has one (orange for Purple & Orange, red for Slate & Crimson, gold for Gold
+# & Teal) and the darkest primary shade for the monochromatic blues (darkest
+# royal blue for Blue & Sky, darkest navy for Navy & Silver). Any new scheme
+# added here must follow the same rule.
 SCHEMES: dict[str, dict] = {
     "Purple & Orange (Full Send style)": {
         "banner_primary": DEFAULT_BANNER_PRIMARY,
@@ -99,7 +109,8 @@ SCHEMES: dict[str, dict] = {
         "accent": "#4A90D9",
         "bar_actual_color": "#4A90D9",
         "bar_budget_color": "#C7CDD1",
-        "line_colors": ["#AFC6DA", "#6699BF", "#1B3A5C", "#4A90D9"],
+        # Series 4 (current year) = darkest navy (dominant); older years lighter.
+        "line_colors": ["#AFC6DA", "#6699BF", "#4A90D9", "#1B3A5C"],
     },
     "Blue & Sky": {
         "banner_primary": "#1D4ED8",
@@ -107,7 +118,8 @@ SCHEMES: dict[str, dict] = {
         "accent": "#38BDF8",
         "bar_actual_color": "#38BDF8",
         "bar_budget_color": "#D2D2D7",
-        "line_colors": ["#BFDBFE", "#60A5FA", "#1D4ED8", "#38BDF8"],
+        # Series 4 (current year) = darkest royal blue (dominant); older years lighter.
+        "line_colors": ["#BFDBFE", "#38BDF8", "#60A5FA", "#1D4ED8"],
     },
     "Slate & Crimson": {
         "banner_primary": "#3A4750",

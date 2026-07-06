@@ -224,12 +224,14 @@ with col_controls:
 
         st.markdown("**Chart type** (line or bar, per chart)")
         tc1, tc2, tc3 = st.columns(3)
-        _type_opts = ["line", "bar"]
-        tc1.selectbox("Income", _type_opts, key=WIDGET_KEYS["income_chart_type"],
+        # Income/Expense default to line, Data defaults to a (horizontal) bar --
+        # so each selectbox lists its own default first, which is also the value
+        # Streamlit falls back to if session_state were ever unseeded.
+        tc1.selectbox("Income", ["line", "bar"], key=WIDGET_KEYS["income_chart_type"],
                       format_func=str.capitalize)
-        tc2.selectbox("Expense", _type_opts, key=WIDGET_KEYS["expense_chart_type"],
+        tc2.selectbox("Expense", ["line", "bar"], key=WIDGET_KEYS["expense_chart_type"],
                       format_func=str.capitalize)
-        tc3.selectbox("Data", _type_opts, key=WIDGET_KEYS["data_chart_type"],
+        tc3.selectbox("Data", ["bar", "line"], key=WIDGET_KEYS["data_chart_type"],
                       format_func=str.capitalize)
         st.caption(
             "Switching a chart's type also changes it in the workbook you apply "
