@@ -62,8 +62,25 @@ class OrgProfile:
 
     @classmethod
     def from_dict(cls, d: dict) -> "OrgProfile":
-        known = {k: d.get(k, getattr(cls, k, None)) for k in cls.__dataclass_fields__}
-        return cls(**known)
+        """
+        Build an OrgProfile from a saved dict, tolerating older profile.json
+        files saved before newer fields (like display_order) existed.
+
+        Deliberately does NOT do `{k: d.get(k, getattr(cls, k, None)) ...}` --
+        that looked reasonable but breaks for fields declared with
+        `field(default_factory=...)` (list-valued fields): those have no
+        class-level attribute to fall back to, so a missing key silently
+        became None instead of the real default. Confirmed as the cause of a
+        production AttributeError on Streamlit Cloud (2026-07-07) when an org
+        profile saved before this field existed was reloaded after the field
+        was added. Instantiating a real default object first and overlaying
+        only the keys actually present sidesteps this entirely.
+        """
+        profile = cls()
+        for k in cls.__dataclass_fields__:
+            if k in d and d[k] is not None:
+                setattr(profile, k, d[k])
+        return profile
 
 
 def slugify(name: str) -> str:
