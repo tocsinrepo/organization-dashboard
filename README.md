@@ -10,15 +10,19 @@ Private for now. Will be made public once it's been tested.
 ## What it does
 
 1. Pick your organization (or create a new one).
-2. Type your header text, upload your logo, pick a color scheme (banner,
-   accent, bar, and line colors all update together -- fine-tune any single
-   one afterward if you want), choose which fiscal year displays first, and
-   set axis minimums. Prefer working in Excel? Download a settings form
-   instead, fill it in there, and upload it back — same result either way.
-3. Watch the picture update instantly as you go.
-4. Click "Save" so it remembers your settings next time.
-5. Upload a copy of your real dashboard workbook and click "Apply branding"
-   to get a branded version back — download it and you're done.
+2. Upload your dashboard workbook in the sidebar — the preview then shows
+   **your organization's real Income, Expense, and Data numbers**, styled with
+   your branding, so you see exactly how your own report will look (optional:
+   without a workbook the preview uses clearly-labeled sample numbers).
+3. Set your branding using the tabbed controls: **Text & logo**, **Colors**
+   (banner, accent, bar, and line colors update together — fine-tune any single
+   one afterward), and **Chart options** (fiscal-year display order and axis
+   minimums). Prefer working in Excel? Download a settings form instead, fill it
+   in there, and upload it back — same result either way.
+4. Watch the picture update instantly as you go.
+5. Click "Save" so it remembers your settings next time.
+6. Click "Apply branding" to get a branded copy of the workbook you uploaded —
+   download it and you're done.
 
 Each organization runs its own copy of this app on their own computer.
 Nobody's logo, colors, or data ever leaves their machine.
@@ -54,21 +58,26 @@ That's the app. If it doesn't open automatically, Terminal will show a web
 address (something like `http://localhost:8501`) — copy that into your
 browser.
 
-**Step 5 — Set up your organization.**
-- On the left, choose "+ New organization" and type your organization's name.
-- Type your header subtitle.
-- Upload your logo.
-- Pick a color scheme — the picture on the right updates right away. Want to
-  nudge just one color? Use the individual pickers below the scheme dropdown.
+**Step 5 — Upload your dashboard workbook (sidebar).**
+In the left sidebar, upload a copy of your dashboard workbook. The preview now
+shows *your* real Income, Expense, and Data numbers. (You can skip this and
+still design your branding against sample numbers — but uploading lets you see
+the real thing and is also the file that branding gets applied to.)
 
-**Step 6 — Save it.**
+**Step 6 — Set up your organization.**
+- In the sidebar, choose "+ New organization."
+- In the **Text & logo** tab: type your organization's name and subtitle, and
+  upload your logo.
+- In the **Colors** tab: pick a color scheme — the picture on the right updates
+  right away. Want to nudge just one color? Use the individual pickers.
+- In the **Chart options** tab: set fiscal-year display order and axis minimums.
+
+**Step 7 — Save it.**
 Click "Save organization profile." Next time you open the app, your
 organization will already be in the list.
 
-**Step 7 — Apply it to your real dashboard file.**
-- Upload a copy of your dashboard workbook (it needs to be built from the
-  standard template — same tabs and charts, just your own numbers).
-- Click "Apply branding."
+**Step 8 — Apply it to your real dashboard file.**
+- Click "Apply branding" (uses the workbook you uploaded in the sidebar).
 - Click "Download branded workbook" and save it wherever you like. Your
   original upload is never changed.
 
@@ -97,6 +106,8 @@ lib/app_state.py        keeps the app's widgets, an OrgProfile, and the
                          docstring if you're extending this file --
                          Streamlit widgets are stricter about this than
                          they first appear)
+lib/dashboard_data.py   reads your real Income/Expense/Data numbers out of an
+                         uploaded workbook so the preview can show them
 lib/dashboard_preview.py draws the live on-screen preview
 lib/excel_writer.py      writes the branding into a real workbook copy
 lib/settings_form.py    builds/reads the downloadable Excel settings form
@@ -107,10 +118,11 @@ requirements.txt
 
 ## Roadmap
 
-- **Now:** logo, header text, a 5-preset color scheme (Purple & Orange,
-  Gold & Teal, Navy & Silver, Forest & Amber, Slate & Crimson) that
-  sets the banner/accent/bar/line colors together with the option to
-  fine-tune any single one afterward, fiscal-year display order, axis
+- **Now:** a live preview of your organization's **real Income / Expense / Data
+  numbers** read from your uploaded workbook; logo, header text, a 5-preset
+  color scheme (Purple & Orange, Gold & Teal, Navy & Silver, Forest & Amber,
+  Slate & Crimson) that sets the banner/accent/bar/line colors together with the
+  option to fine-tune any single one afterward, fiscal-year display order, axis
   minimums, and a downloadable/uploadable Excel settings form as an
   alternative to the on-screen controls -- same 5 presets there too, so it
   can be filled out entirely in Excel without ever opening the web app.

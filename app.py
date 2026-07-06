@@ -1,10 +1,11 @@
 """
 Organization Dashboard Styler
 ------------------------------
-Streamlit app: pick or create your organization, choose a color scheme (or
-fine-tune individual chart colors), adjust its logo and header text, watch
-the preview update live, save the profile so it's remembered next time, and
-(optionally) apply it into a real copy of your dashboard workbook.
+Streamlit app: pick or create your organization, upload your dashboard
+workbook to preview your real numbers, choose a color scheme (or fine-tune
+individual chart colors), adjust its logo and header text, watch the preview
+update live, save the profile so it's remembered next time, and apply it into
+a real copy of your dashboard workbook.
 
 Run it with:
     streamlit run app.py
@@ -25,6 +26,7 @@ from lib.app_state import (
     field_updates_to_widget_state, widget_state_to_field_updates,
     detect_scheme, scheme_options,
 )
+from lib.dashboard_data import extract_dashboard_data
 from lib.dashboard_preview import render_preview
 from lib.excel_writer import TemplateMismatchError, apply_profile_to_workbook
 from lib.settings_form import (
@@ -32,12 +34,6 @@ from lib.settings_form import (
 )
 
 st.set_page_config(page_title="Organization Dashboard Styler", layout="wide")
-st.title("Organization Dashboard Styler")
-st.caption(
-    "Set up your organization's logo, header text, and colors. The preview "
-    "on the right updates instantly. Save when you're happy, then apply it "
-    "to your real dashboard file whenever you're ready."
-)
 
 
 def _seed_widget_state(profile: op.OrgProfile) -> None:
@@ -52,7 +48,7 @@ def _seed_widget_state(profile: op.OrgProfile) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 1. Choose or create an organization
+# 1. Choose or create an organization (sidebar)
 # ---------------------------------------------------------------------------
 # Streamlit forbids writing to st.session_state[key] for a widget that has
 # already been instantiated *this run* -- so "select this org after saving"
@@ -61,6 +57,8 @@ def _seed_widget_state(profile: op.OrgProfile) -> None:
 # selectbox is created, on the very next run.
 if "_pending_org_choice" in st.session_state:
     st.session_state[ORG_CHOICE_KEY] = st.session_state.pop("_pending_org_choice")
+
+st.sidebar.title("Organization Dashboard Styler")
 
 existing_orgs = op.list_orgs()
 choice = st.sidebar.selectbox(
@@ -84,20 +82,31 @@ if st.session_state.get(LOADED_SLUG_KEY) != choice:
     st.session_state[LOADED_SLUG_KEY] = choice
     st.rerun()
 
-st.sidebar.divider()
-
-# ---------------------------------------------------------------------------
-# 1b. Settings form -- an alternative to the widgets below. Download a copy
-# of the current settings as an Excel form, edit it there instead of using
-# the color pickers, then upload it back here. By this point in the script,
-# every widget key above is guaranteed already seeded (see the block above),
-# so reading st.session_state directly here reflects the true current state
-# even though most of those widgets haven't been drawn yet this run.
-# ---------------------------------------------------------------------------
+# By this point every widget key above is guaranteed already seeded (see the
+# block above), so reading st.session_state directly here reflects the true
+# current state even though most of those widgets haven't been drawn yet.
 current_profile = op.OrgProfile(
     **widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile())
 )
 
+# ---------------------------------------------------------------------------
+# 1b. Dashboard workbook -- upload once, used for BOTH the live preview (to
+# show real numbers) and the "Apply branding" step lower down. Optional: with
+# no workbook the preview falls back to clearly-labeled sample numbers.
+# ---------------------------------------------------------------------------
+st.sidebar.divider()
+st.sidebar.subheader("Your dashboard workbook")
+workbook_upload = st.sidebar.file_uploader(
+    "Upload your dashboard (.xlsx) -- shows your real numbers in the preview "
+    "and is what branding gets applied to.",
+    type=["xlsx"], key="template",
+)
+dashboard_data = extract_dashboard_data(workbook_upload) if workbook_upload is not None else None
+
+# ---------------------------------------------------------------------------
+# 1c. Settings form -- an alternative to the color controls. Download a copy
+# of the current settings as an Excel form, edit it there, then upload it back.
+# ---------------------------------------------------------------------------
 with st.sidebar.expander("Prefer Excel? Use a settings form instead", expanded=False):
     st.caption(
         "Download a form pre-filled with the values below, edit it in Excel, "
@@ -127,72 +136,74 @@ with st.sidebar.expander("Prefer Excel? Use a settings form instead", expanded=F
             st.error(str(e))
 
 # ---------------------------------------------------------------------------
-# 2. Branding controls
+# 2. Branding controls (left, grouped into tabs) + live preview (right)
 # ---------------------------------------------------------------------------
-col_controls, col_preview = st.columns([1, 1.3])
+col_controls, col_preview = st.columns([1, 1.55], gap="large")
 
 with col_controls:
-    st.subheader("Header text")
-    st.text_input("Organization name (top banner)", key=WIDGET_KEYS["org_name"])
-    st.text_input("Header subtitle", key=WIDGET_KEYS["header_subtitle"])
+    tab_text, tab_colors, tab_charts = st.tabs(["Text & logo", "Colors", "Chart options"])
 
-    st.subheader("Logo")
-    uploaded_logo = st.file_uploader("Upload a logo (PNG/JPG)", type=["png", "jpg", "jpeg"], key="logo_upload")
+    with tab_text:
+        st.text_input("Organization name (top banner)", key=WIDGET_KEYS["org_name"])
+        st.text_input("Header subtitle", key=WIDGET_KEYS["header_subtitle"])
+        uploaded_logo = st.file_uploader("Upload a logo (PNG/JPG)", type=["png", "jpg", "jpeg"], key="logo_upload")
+
     logo_bytes = None
     if uploaded_logo is not None:
         logo_bytes = uploaded_logo.getvalue()
     elif choice != "+ New organization" and op.logo_path(choice):
         logo_bytes = op.logo_path(choice).read_bytes()
 
-    st.subheader("Color scheme")
-    current_colors = widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile())
-    options = scheme_options(current_colors)
-    if st.session_state.get(SCHEME_KEY) not in options:
-        st.session_state[SCHEME_KEY] = options[0]
-    st.selectbox(
-        "Pick a preset -- sets the banner, accent, bar, and line colors together",
-        options=options,
-        key=SCHEME_KEY,
-    )
+    with tab_colors:
+        current_colors = widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile())
+        options = scheme_options(current_colors)
+        if st.session_state.get(SCHEME_KEY) not in options:
+            st.session_state[SCHEME_KEY] = options[0]
+        st.selectbox(
+            "Color scheme -- sets banner, accent, bar, and line colors together",
+            options=options,
+            key=SCHEME_KEY,
+        )
 
-    chosen_scheme = st.session_state[SCHEME_KEY]
-    if chosen_scheme != CUSTOM_SCHEME_LABEL and chosen_scheme != st.session_state.get(LAST_APPLIED_SCHEME_KEY):
-        # User just picked a different real preset -- cascade its 6 color
-        # fields (including the now-hidden banner colors) into every
-        # relevant widget key, then rerun so the pickers below show the new
-        # values instead of ignoring them.
-        for k, v in field_updates_to_widget_state(SCHEMES[chosen_scheme]).items():
-            st.session_state[k] = v
-        st.session_state[LAST_APPLIED_SCHEME_KEY] = chosen_scheme
-        st.rerun()
+        chosen_scheme = st.session_state[SCHEME_KEY]
+        if chosen_scheme != CUSTOM_SCHEME_LABEL and chosen_scheme != st.session_state.get(LAST_APPLIED_SCHEME_KEY):
+            # User just picked a different real preset -- cascade its 6 color
+            # fields (including the now-hidden banner colors) into every
+            # relevant widget key, then rerun so the pickers show the new values.
+            for k, v in field_updates_to_widget_state(SCHEMES[chosen_scheme]).items():
+                st.session_state[k] = v
+            st.session_state[LAST_APPLIED_SCHEME_KEY] = chosen_scheme
+            st.rerun()
 
-    st.caption(
-        "Banner colors follow the scheme above. Fine-tune the accent, bar, "
-        "or line colors below if you want to nudge just one of them -- "
-        "picking a different scheme resets all of these again."
-    )
-    st.markdown("**Data bar chart**")
-    st.color_picker("Actual", key=WIDGET_KEYS["bar_actual_color"])
-    st.color_picker("Budgeted", key=WIDGET_KEYS["bar_budget_color"])
-    st.number_input("Bar chart axis minimum ($)", key=WIDGET_KEYS["bar_axis_min"], step=1000.0)
+        st.caption(
+            "Fine-tune any single color below -- picking a different scheme "
+            "above resets all of these again."
+        )
+        st.markdown("**Data bar chart**")
+        bc1, bc2 = st.columns(2)
+        bc1.color_picker("Actual", key=WIDGET_KEYS["bar_actual_color"])
+        bc2.color_picker("Budgeted", key=WIDGET_KEYS["bar_budget_color"])
+        st.color_picker("Accent strip", key=WIDGET_KEYS["accent"])
 
-    st.color_picker("Accent strip", key=WIDGET_KEYS["accent"])
+        st.markdown("**Income / Expense line colors** (4 fiscal years)")
+        line_cols = st.columns(4)
+        for i, c in enumerate(line_cols):
+            c.color_picker(f"Series {i + 1}", key=LINE_COLOR_KEYS[i])
 
-    st.markdown("**Income / Expense line colors** (4 fiscal years)")
-    line_cols = st.columns(4)
-    for i, c in enumerate(line_cols):
-        c.color_picker(f"Series {i + 1}", key=LINE_COLOR_KEYS[i])
+    with tab_charts:
+        st.markdown("**Fiscal year display order** (1 = first in legend and drawn on top)")
+        order_cols = st.columns(4)
+        for i, c in enumerate(order_cols):
+            c.number_input(f"Series {i + 1}", min_value=1, max_value=4, step=1, key=ORDER_POSITION_KEYS[i])
 
-    st.markdown("**Fiscal year display order** (1 = first in legend and drawn on top)")
-    order_cols = st.columns(4)
-    for i, c in enumerate(order_cols):
-        c.number_input(f"Series {i + 1} position", min_value=1, max_value=4, step=1, key=ORDER_POSITION_KEYS[i])
+        positions = [st.session_state[k] for k in ORDER_POSITION_KEYS]
+        if sorted(positions) != [1, 2, 3, 4]:
+            st.warning("Each series needs a different position (1, 2, 3, 4, no repeats) -- keeping the last valid order.")
 
-    positions = [st.session_state[k] for k in ORDER_POSITION_KEYS]
-    if sorted(positions) != [1, 2, 3, 4]:
-        st.warning("Each series needs a different position (1, 2, 3, 4, no repeats) -- keeping the last valid order.")
-
-    st.number_input("Line chart axis minimum ($)", key=WIDGET_KEYS["line_axis_min"], step=1000.0)
+        st.markdown("**Axis minimums**")
+        ac1, ac2 = st.columns(2)
+        ac1.number_input("Bar chart axis min ($)", key=WIDGET_KEYS["bar_axis_min"], step=1000.0)
+        ac2.number_input("Line chart axis min ($)", key=WIDGET_KEYS["line_axis_min"], step=1000.0)
 
 profile = op.OrgProfile(**widget_state_to_field_updates(st.session_state, defaults=op.OrgProfile()))
 
@@ -204,20 +215,27 @@ else:
 
 with col_preview:
     st.subheader("Live preview")
-    fig = render_preview(profile, logo_bytes=logo_bytes)
+    if dashboard_data is not None and dashboard_data.ok:
+        st.caption("✅ Showing your real Income / Expense / Data numbers from the uploaded workbook.")
+    elif dashboard_data is not None:
+        st.caption(f"⚠️ Using sample numbers — {dashboard_data.note}")
+    else:
+        st.caption("Showing sample numbers. Upload your workbook in the sidebar to preview your real data.")
+    fig = render_preview(profile, logo_bytes=logo_bytes, data=dashboard_data)
     st.pyplot(fig, width="stretch")
 
 st.divider()
 
 # ---------------------------------------------------------------------------
-# 3. Save the organization profile (persists for next time)
+# 3. Save the profile / 4. Apply branding to the uploaded workbook
 # ---------------------------------------------------------------------------
-save_col, apply_col = st.columns(2)
+save_col, apply_col = st.columns(2, gap="large")
 
 with save_col:
     st.subheader("Save")
+    st.caption("Remember this organization's branding for next time.")
     if not slug:
-        st.info("Enter an organization name above to enable saving.")
+        st.info("Enter an organization name (Text & logo tab) to enable saving.")
     elif st.button("Save organization profile", type="primary"):
         ext = "png"
         if uploaded_logo is not None:
@@ -232,21 +250,17 @@ with save_col:
         st.success(f"Saved. '{slug}' will be remembered next time you open this app.")
         st.rerun()
 
-# ---------------------------------------------------------------------------
-# 4. Apply to a real dashboard workbook
-# ---------------------------------------------------------------------------
 with apply_col:
     st.subheader("Apply to Excel")
     st.caption(
-        "Upload a copy of your dashboard workbook (built from the standard "
-        "template). This never touches your original file -- you'll download "
-        "a new file with your branding applied."
+        "Applies your branding into a new copy of the workbook you uploaded in "
+        "the sidebar. Your original file is never modified."
     )
-    template_upload = st.file_uploader("Your dashboard workbook (.xlsx)", type=["xlsx"], key="template")
-
-    if template_upload is not None and st.button("Apply branding"):
+    if workbook_upload is None:
+        st.info("Upload your dashboard workbook in the sidebar to enable this.")
+    elif st.button("Apply branding"):
         with NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_in:
-            tmp_in.write(template_upload.getvalue())
+            tmp_in.write(workbook_upload.getvalue())
             tmp_in_path = Path(tmp_in.name)
 
         tmp_logo_path = None
