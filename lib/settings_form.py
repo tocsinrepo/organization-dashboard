@@ -42,6 +42,11 @@ parse_settings_form so they can never drift apart):
   Axis minimums ($)
     Data bar chart                    C32
     Income/Expense line charts       C33
+
+  Chart types ("line" or "bar"; blank keeps the default)
+    Income chart                     C36
+    Expense chart                    C37
+    Data chart                       C38
 """
 
 from __future__ import annotations
@@ -96,13 +101,13 @@ SCHEMES: dict[str, dict] = {
         "bar_budget_color": "#C7CDD1",
         "line_colors": ["#AFC6DA", "#6699BF", "#1B3A5C", "#4A90D9"],
     },
-    "Forest & Amber": {
-        "banner_primary": "#1E5631",
-        "banner_secondary": "#133D22",
-        "accent": "#E0A526",
-        "bar_actual_color": "#E0A526",
+    "Blue & Sky": {
+        "banner_primary": "#1D4ED8",
+        "banner_secondary": "#14268C",
+        "accent": "#38BDF8",
+        "bar_actual_color": "#38BDF8",
         "bar_budget_color": "#D2D2D7",
-        "line_colors": ["#B7D9B0", "#6FAE64", "#1E5631", "#E0A526"],
+        "line_colors": ["#BFDBFE", "#60A5FA", "#1D4ED8", "#38BDF8"],
     },
     "Slate & Crimson": {
         "banner_primary": "#3A4750",
@@ -137,6 +142,15 @@ LINE_COLOR_SCHEME_COLS = ["G", "H", "I", "J"]  # matching columns on the Schemes
 DISPLAY_ORDER_CELLS = ["C26", "C27", "C28", "C29"]  # display_order slot for series 1..4
 BAR_AXIS_MIN_CELL = "C32"
 LINE_AXIS_MIN_CELL = "C33"
+
+# Chart type per chart ("line" or "bar"). Blank on upload = keep the field's
+# template default rather than erroring.
+CHART_TYPE_CELLS = {
+    "income_chart_type": ("C36", "Income chart", "line"),
+    "expense_chart_type": ("C37", "Expense chart", "line"),
+    "data_chart_type": ("C38", "Data chart", "bar"),
+}
+VALID_CHART_TYPES = ("line", "bar")
 
 
 class SettingsFormError(ValueError):
@@ -287,6 +301,21 @@ def build_settings_form(profile: OrgProfile) -> bytes:
     ws["B33"] = "Income/Expense line charts"
     ws[LINE_AXIS_MIN_CELL] = profile.line_axis_min
 
+    # --- Chart types ---
+    ws["B35"] = "CHART TYPES (line or bar)"
+    ws["B35"].font = bold
+    dv_type = DataValidation(
+        type="list", formula1='"line,bar"',
+        showErrorMessage=True, errorTitle="Invalid chart type",
+        error='Enter "line" or "bar".',
+    )
+    ws.add_data_validation(dv_type)
+    for field, (cell, label, _default) in CHART_TYPE_CELLS.items():
+        row = cell[1:]
+        ws[f"B{row}"] = label
+        ws[cell] = getattr(profile, field)
+        dv_type.add(ws[cell])
+
     _build_schemes_sheet(wb)
     wb.active = wb.sheetnames.index(SHEET_NAME)
 
@@ -369,6 +398,19 @@ def parse_settings_form(file_like) -> dict:
             updates[field] = float(value)
         except (TypeError, ValueError):
             raise SettingsFormError(f"Axis minimum in cell {cell} must be a number.")
+
+    # Chart types are optional -- a blank cell keeps the field's default.
+    for field, (cell, label, default) in CHART_TYPE_CELLS.items():
+        value = ws[cell].value
+        if value is None or not str(value).strip():
+            updates[field] = default
+            continue
+        v = str(value).strip().lower()
+        if v not in VALID_CHART_TYPES:
+            raise SettingsFormError(
+                f"'{label}' must be either 'line' or 'bar' (found {value!r})."
+            )
+        updates[field] = v
 
     return updates
 
