@@ -58,11 +58,11 @@ def render_preview(profile: OrgProfile, logo_bytes: bytes | None = None):
         except Exception:
             pass  # bad/unsupported image -- preview just skips it, doesn't crash
 
-    # --- Sample bar chart (Contributions: Budget vs Actual) ---
+    # --- Sample bar chart (Data: Budget vs Actual) ---
     bar_ax = fig.add_axes([0.08, 0.46, 0.38, 0.32])
     bar_ax.bar(["Actual", "Budgeted"], [_SAMPLE_ACTUAL, _SAMPLE_BUDGET],
                color=[profile.bar_actual_color, profile.bar_budget_color])
-    bar_ax.set_title("Contributions (sample)", fontsize=9)
+    bar_ax.set_title("Data (sample)", fontsize=9)
     bar_ax.set_ylabel("$M", fontsize=8)
     bar_ax.tick_params(labelsize=8)
     bar_ax.set_ylim(bottom=profile.bar_axis_min)

@@ -4,8 +4,8 @@ copy of the dashboard workbook, using openpyxl.
 
 IMPORTANT -- this module assumes the workbook follows the standard template
 layout (same structure every organization's dashboard uses; only the numbers
-differ). That layout was confirmed directly against the real Cornerstones
-REV10 workbook on 2026-07-06:
+differ). That layout was confirmed directly against a real dashboard
+workbook built from this template on 2026-07-06:
 
   Sheet "Dashboard":
     A1:K1  merged, solid fill  -> banner primary color + org name text
@@ -16,7 +16,7 @@ REV10 workbook on 2026-07-06:
     charts, in order:
       0. LineChart "Income"       - 4 series (fiscal years), colors by series index
       1. LineChart "Expense"      - 4 series (fiscal years), colors by series index
-      2. BarChart  "Contributions" - series 0 = Actual, series 1 = Budgeted
+      2. BarChart  "Data"          - series 0 = Actual, series 1 = Budgeted
 
   Sheets "Summary" and "Raw" are never touched -- they hold the org's actual
   financial data/formulas, which is explicitly out of scope for this writer.

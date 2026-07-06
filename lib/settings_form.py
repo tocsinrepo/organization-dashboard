@@ -24,7 +24,7 @@ parse_settings_form so they can never drift apart):
   Colors (hex) -- auto-filled by the scheme above; edit any cell directly
   to override just that one color and break its link to the preset.
     Banner - primary                 C14
-    Banner - secondary               C15
+    Banner - secondary                C15
     Accent strip                     C16
     Bar chart - Actual                C17
     Bar chart - Budgeted             C18
@@ -40,7 +40,7 @@ parse_settings_form so they can never drift apart):
     Line series 4 -> position        C29
 
   Axis minimums ($)
-    Contributions bar chart          C32
+    Data bar chart                    C32
     Income/Expense line charts       C33
 """
 
@@ -57,9 +57,9 @@ from lib.org_profile import (
     OrgProfile,
     DEFAULT_BANNER_PRIMARY, DEFAULT_BANNER_SECONDARY, DEFAULT_ACCENT,
     DEFAULT_LINE_COLORS, DEFAULT_BAR_ACTUAL, DEFAULT_BAR_BUDGET,
-    CORNERSTONES_CLASSIC_BANNER_PRIMARY, CORNERSTONES_CLASSIC_BANNER_SECONDARY,
-    CORNERSTONES_CLASSIC_ACCENT, CORNERSTONES_CLASSIC_LINE_COLORS,
-    CORNERSTONES_CLASSIC_BAR_ACTUAL, CORNERSTONES_CLASSIC_BAR_BUDGET,
+    GOLD_TEAL_BANNER_PRIMARY, GOLD_TEAL_BANNER_SECONDARY,
+    GOLD_TEAL_ACCENT, GOLD_TEAL_LINE_COLORS,
+    GOLD_TEAL_BAR_ACTUAL, GOLD_TEAL_BAR_BUDGET,
 )
 
 SHEET_NAME = "Settings"
@@ -80,13 +80,13 @@ SCHEMES: dict[str, dict] = {
         "bar_budget_color": DEFAULT_BAR_BUDGET,
         "line_colors": list(DEFAULT_LINE_COLORS),
     },
-    "Cornerstones Classic (teal & gold)": {
-        "banner_primary": CORNERSTONES_CLASSIC_BANNER_PRIMARY,
-        "banner_secondary": CORNERSTONES_CLASSIC_BANNER_SECONDARY,
-        "accent": CORNERSTONES_CLASSIC_ACCENT,
-        "bar_actual_color": CORNERSTONES_CLASSIC_BAR_ACTUAL,
-        "bar_budget_color": CORNERSTONES_CLASSIC_BAR_BUDGET,
-        "line_colors": list(CORNERSTONES_CLASSIC_LINE_COLORS),
+    "Gold & Teal": {
+        "banner_primary": GOLD_TEAL_BANNER_PRIMARY,
+        "banner_secondary": GOLD_TEAL_BANNER_SECONDARY,
+        "accent": GOLD_TEAL_ACCENT,
+        "bar_actual_color": GOLD_TEAL_BAR_ACTUAL,
+        "bar_budget_color": GOLD_TEAL_BAR_BUDGET,
+        "line_colors": list(GOLD_TEAL_LINE_COLORS),
     },
     "Navy & Silver": {
         "banner_primary": "#1B3A5C",
@@ -282,7 +282,7 @@ def build_settings_form(profile: OrgProfile) -> bytes:
     # --- Axis minimums ---
     ws["B31"] = "AXIS MINIMUMS ($)"
     ws["B31"].font = bold
-    ws["B32"] = "Contributions bar chart"
+    ws["B32"] = "Data bar chart"
     ws[BAR_AXIS_MIN_CELL] = profile.bar_axis_min
     ws["B33"] = "Income/Expense line charts"
     ws[LINE_AXIS_MIN_CELL] = profile.line_axis_min

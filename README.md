@@ -10,10 +10,11 @@ Private for now. Will be made public once it's been tested.
 ## What it does
 
 1. Pick your organization (or create a new one).
-2. Type your header text, upload your logo, pick your colors, choose which
-   fiscal year displays first, and set axis minimums. Prefer working in
-   Excel? Download a settings form instead, fill it in there, and upload it
-   back — same result either way.
+2. Type your header text, upload your logo, pick a color scheme (banner,
+   accent, bar, and line colors all update together -- fine-tune any single
+   one afterward if you want), choose which fiscal year displays first, and
+   set axis minimums. Prefer working in Excel? Download a settings form
+   instead, fill it in there, and upload it back — same result either way.
 3. Watch the picture update instantly as you go.
 4. Click "Save" so it remembers your settings next time.
 5. Upload a copy of your real dashboard workbook and click "Apply branding"
@@ -57,7 +58,8 @@ browser.
 - On the left, choose "+ New organization" and type your organization's name.
 - Type your header subtitle.
 - Upload your logo.
-- Pick your colors — the picture on the right updates right away.
+- Pick a color scheme — the picture on the right updates right away. Want to
+  nudge just one color? Use the individual pickers below the scheme dropdown.
 
 **Step 6 — Save it.**
 Click "Save organization profile." Next time you open the app, your
@@ -78,7 +80,7 @@ This app expects the dashboard workbook to have:
 - A **Raw** tab (the underlying P&L data).
 
 The three charts on the Dashboard tab must be, in order: an Income line
-chart, an Expense line chart, and a Contributions bar chart (Actual then
+chart, an Expense line chart, and a Data bar chart (Actual then
 Budgeted). If your file doesn't match that shape, the app will tell you
 rather than guessing and silently getting it wrong.
 
@@ -90,6 +92,11 @@ organization's data) is on the roadmap — not built yet.
 ```
 app.py                  Streamlit app (the screen you interact with)
 lib/org_profile.py      saves/loads each organization's settings
+lib/app_state.py        keeps the app's widgets, an OrgProfile, and the
+                         chosen color scheme in sync (see its module
+                         docstring if you're extending this file --
+                         Streamlit widgets are stricter about this than
+                         they first appear)
 lib/dashboard_preview.py draws the live on-screen preview
 lib/excel_writer.py      writes the branding into a real workbook copy
 lib/settings_form.py    builds/reads the downloadable Excel settings form
@@ -100,16 +107,14 @@ requirements.txt
 
 ## Roadmap
 
-- **Now:** logo, header text, color scheme (banners, bar chart, 4-series line
-  charts), fiscal-year display order, axis minimums, and a downloadable/
-  uploadable Excel settings form as an alternative to the on-screen controls.
-  The settings form also has its own organization name/header subtitle
-  fields and a 5-preset color-scheme dropdown (Purple & Orange, Cornerstones
-  Classic, Navy & Silver, Forest & Amber, Slate & Crimson) that auto-fills
-  every color cell -- and its own color swatch -- the moment you pick a
-  scheme, so it can be filled out entirely in Excel without ever opening
-  the web app.
+- **Now:** logo, header text, a 5-preset color scheme (Purple & Orange,
+  Gold & Teal, Navy & Silver, Forest & Amber, Slate & Crimson) that
+  sets the banner/accent/bar/line colors together with the option to
+  fine-tune any single one afterward, fiscal-year display order, axis
+  minimums, and a downloadable/uploadable Excel settings form as an
+  alternative to the on-screen controls -- same 5 presets there too, so it
+  can be filled out entirely in Excel without ever opening the web app.
 - **Next:** switching a chart's type (e.g. bar to line).
 - **Next:** editing number formats (e.g. `$#,##0,K`).
 - **Later:** a blank starter template file so a brand-new organization doesn't
-  need an existing Cornerstones-style file to start from.
+  need an existing sample file to start from.

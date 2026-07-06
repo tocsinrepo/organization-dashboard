@@ -171,7 +171,7 @@ with col_controls:
         "or line colors below if you want to nudge just one of them -- "
         "picking a different scheme resets all of these again."
     )
-    st.markdown("**Contributions bar chart**")
+    st.markdown("**Data bar chart**")
     st.color_picker("Actual", key=WIDGET_KEYS["bar_actual_color"])
     st.color_picker("Budgeted", key=WIDGET_KEYS["bar_budget_color"])
     st.number_input("Bar chart axis minimum ($)", key=WIDGET_KEYS["bar_axis_min"], step=1000.0)

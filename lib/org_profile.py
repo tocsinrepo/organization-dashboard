@@ -5,7 +5,7 @@ Each organization gets its own folder under orgs/<slug>/ containing:
   - profile.json   (org name, header text, colors)
   - logo.<ext>     (their uploaded logo image, any format Pillow can read)
 
-Nothing here touches the dashboard workbook itself -- that's excel_writer.py.
+Nothing here touches the dashboard workbook itself — that's excel_writer.py.
 This module only knows about the small JSON "branding" record.
 """
 
@@ -29,7 +29,7 @@ ORGS_DIR = Path(__file__).resolve().parent.parent / "orgs"
 # apart again the way they did briefly on 2026-07-07 (the settings form's
 # dropdown default was changed to purple/orange but these constants -- the
 # ones that actually drive a brand-new org's web-app preview -- were left
-# on the old teal/gold Cornerstones look, which Jon caught immediately).
+# on the old teal/gold look, which Jon caught immediately).
 DEFAULT_BANNER_PRIMARY = "#4D148C"
 DEFAULT_BANNER_SECONDARY = "#341060"
 DEFAULT_ACCENT = "#FF6600"
@@ -39,16 +39,17 @@ DEFAULT_BAR_BUDGET = "#4D148C"        # bar chart series "Budgeted"
 DEFAULT_DISPLAY_ORDER = [0, 1, 2, 3]  # identity: series 0..3 shown/drawn in original order
 DEFAULT_AXIS_MIN = 0.0
 
-# The original Cornerstones REV10 look, confirmed against the real workbook
-# (Dashboard!A1:A3 fills, chart series colors) on 2026-07-06 -- preserved
-# here (and as the "Cornerstones Classic" scheme in settings_form.py) so it
-# isn't lost now that it's no longer the default.
-CORNERSTONES_CLASSIC_BANNER_PRIMARY = "#14495A"
-CORNERSTONES_CLASSIC_BANNER_SECONDARY = "#0C3540"
-CORNERSTONES_CLASSIC_ACCENT = "#F2A900"
-CORNERSTONES_CLASSIC_LINE_COLORS = ["#B8D4D9", "#5FA8B8", "#1F5B6B", "#F2A900"]
-CORNERSTONES_CLASSIC_BAR_ACTUAL = "#F2A900"
-CORNERSTONES_CLASSIC_BAR_BUDGET = "#D2D2D7"
+# This app's original teal/gold look (its default before Purple & Orange
+# took over) -- preserved here (and as the "Gold & Teal" scheme in
+# settings_form.py) so it isn't lost now that it's no longer the default.
+# This is a generic preset available to any organization, not tied to one
+# particular org's branding.
+GOLD_TEAL_BANNER_PRIMARY = "#14495A"
+GOLD_TEAL_BANNER_SECONDARY = "#0C3540"
+GOLD_TEAL_ACCENT = "#F2A900"
+GOLD_TEAL_LINE_COLORS = ["#B8D4D9", "#5FA8B8", "#1F5B6B", "#F2A900"]
+GOLD_TEAL_BAR_ACTUAL = "#F2A900"
+GOLD_TEAL_BAR_BUDGET = "#D2D2D7"
 
 
 @dataclass
@@ -70,7 +71,7 @@ class OrgProfile:
     # by a direct save/reload test). Slot 0's color is line_colors[0], etc.
     display_order: list = field(default_factory=lambda: list(DEFAULT_DISPLAY_ORDER))
 
-    # Value-axis minimums. bar_axis_min is the Contributions chart's value axis
+    # Value-axis minimums. bar_axis_min is the Data bar chart's value axis
     # (drawn horizontally, so it reads as the "X axis" visually). line_axis_min
     # is the Income/Expense charts' value axis (drawn vertically, the "Y axis").
     bar_axis_min: float = DEFAULT_AXIS_MIN
